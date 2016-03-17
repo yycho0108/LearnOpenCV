@@ -179,13 +179,14 @@ ActivationLayer::ActivationLayer(){
 }
 
 std::vector<Mat>& ActivationLayer::FF(std::vector<Mat> _I){
-	d = I.size();
+	d = _I.size();
+	O.resize(d);
+	G.resize(d);
 	//assert same size
 	I.swap(_I);
 	for(int i=0;i<d;++i){
 		sigmoid(I[i],O[i]);
 	}
-	G.resize(d);
 	return O;
 }
 std::vector<Mat>& ActivationLayer::BP(std::vector<Mat> _G){
@@ -357,8 +358,10 @@ std::vector<Mat>& PoolLayer::FF(std::vector<Mat> _I){
 	auto ph = s_p.height;
 	auto sw = s_s.width;
 	auto sh = s_s.height;
+	
 	auto iw = I[0].size().width;
 	auto ih = I[0].size().height;
+	
 	auto it_w = (iw - pw + sw-1) / sw;
 	auto it_h = (ih - ph + sh-1) / sh;
 

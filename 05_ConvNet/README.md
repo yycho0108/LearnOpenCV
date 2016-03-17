@@ -11,3 +11,5 @@ Debugging
 To Do:
 - [ ] Modularize Code: too much in one file
 - [ ] Test With Learning, not just running
+- [ ] Logistic Regression / SoftMax Layer
+
