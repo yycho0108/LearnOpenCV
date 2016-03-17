@@ -137,25 +137,25 @@ FlattenLayer::FlattenLayer(Size s):s(s){
 	O.push_back(Mat());
 }
 
-std::vector<Mat>& FlattenLayer::FF(std::vector<Mat> I){
+std::vector<Mat>& FlattenLayer::FF(std::vector<Mat> _I){
+	I.swap(_I);
 	int n = I.size();
-	auto s = I[0].size();
+	s = I[0].size();
 	O[0] = I[0].reshape(0,s.width*s.height);
 	for(int i=1;i<n;++i){
-		cv::hconcat(O[0],I[i].reshape(0,s.width*s.height),O[0]);
+		cv::vconcat(O[0],I[i].reshape(0,s.width*s.height),O[0]);
 	}
 	return O;
 }
 
 std::vector<Mat>& FlattenLayer::BP(std::vector<Mat> _G){
 	G.resize(I.size());
-	G.swap(_G);
-	int n = G.size();
+	int n = _G[0].size().height;
 
 	int l = s.width*s.height;
 
-	for(int i=0;i<n;++i){
-		G[i] = _G[0](cv::Rect(0,0,1,l)).reshape(0,s.height);
+	for(int i=0;i<n/l;++i){
+		G[i] = Mat(_G[0](cv::Rect(0,i*l,1,l)).reshape(0,s.height));
 	}
 	return G;
 }
@@ -198,6 +198,7 @@ std::vector<Mat>& ActivationLayer::BP(std::vector<Mat> _G){
 
 class ConvLayer : public Layer{
 private:
+	Size s;
 	int d_i, d_o; //depth of input layers, depth of output layers
 	bool** connection;
 	
@@ -217,7 +218,7 @@ public:
 	void update();
 };
 ConvLayer::ConvLayer(int d_i, int d_o, Size s)
-	:d_i(d_i),d_o(d_o),dW(d_o){
+	:s(s),d_i(d_i),d_o(d_o),dW(d_o){
 	// Size Before SubSampling
 	// d_i = depth of input layers
 	// d_o = depth of output layers
@@ -231,7 +232,7 @@ ConvLayer::ConvLayer(int d_i, int d_o, Size s)
 
 	for(int o=0;o<d_o;++o){
 
-		W.push_back(Mat(5,5,DataType<float>::type));
+		W.push_back(Mat(s,DataType<float>::type));
 		cv::randn(W[o],cv::Scalar::all(0),cv::Scalar::all(0.1));
 
 		b.push_back(Mat(s,DataType<float>::type,Scalar::all(0.1)));//wrong dimension though!	
@@ -389,10 +390,10 @@ std::vector<Mat>& PoolLayer::FF(std::vector<Mat> _I){
 	return O;
 }
 std::vector<Mat>& PoolLayer::BP(std::vector<Mat> _G){
-	G.resize(_G.size());
+	G.resize(_G.size()); // = resize depth (channel)
 
-	int h = S.size();
-	int w = S[0].size();
+	int h = S[0].size();
+	int w = S[0][0].size();
 
 	auto sw = s_s.width;
 	auto sh = s_s.height;
@@ -508,13 +509,52 @@ int testPoolLayer(int argc, char* argv[]){
 
 int main(int argc, char* argv[]){
 	//testPoolLayer(argc,argv);
-	testDenseLayer(argc,argv);
-	/*if(argc != 2){
+	//testDenseLayer(argc,argv);
+	
+	if(argc != 2){
 		cout << "SPECIFY CORRECT ARGS" << endl;
 		return -1;
 	}
 	auto img = imread(argv[1],IMREAD_ANYDEPTH);
 
-*/
+	namedWindow("M",WINDOW_AUTOSIZE);
+	imshow("M",img);
+	img.convertTo(img,CV_32F);
+
+	std::vector<Mat> I;
+	I.push_back(img);
+
+	auto cl_1 = ConvLayer(1,6,img.size());
+	auto al_1 = ActivationLayer(6);
+	auto pl_1 = PoolLayer(Size(5,5),Size(3,3));
+	auto cl_2 = ConvLayer(6,16,Size(127,90));
+	auto al_2 = ActivationLayer(16);
+	auto pl_2 = PoolLayer(Size(5,5),Size(3,3));
+	auto fl = FlattenLayer(Size(3,3)); // arbitrary... frankly don't know
+	auto dl = DenseLayer(1,19024,10);
+	auto al_3 = ActivationLayer(1);
+
+	auto m = cl_1.FF(I);
+	m = al_1.FF(m);
+	m = pl_1.FF(m);
+	m = cl_2.FF(m);
+	m = al_2.FF(m);
+	m = pl_2.FF(m);
+	m = fl.FF(m);
+	m = dl.FF(m);
+	m = al_3.FF(m);
+
+	m = al_3.BP(m);
+	m = dl.BP(m);
+	m = fl.BP(m);
+	m = pl_2.BP(m);
+	m = al_2.BP(m);
+	// confirmed working until here
+	m = cl_2.BP(m);
+	m = pl_1.BP(m);
+	m = cl_1.BP(m);
+
+
+
 	return 0;
 }
