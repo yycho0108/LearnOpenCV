@@ -66,6 +66,7 @@ class Layer{
 	public:
 		virtual std::vector<Mat>& FF(std::vector<Mat>)=0;
 		virtual std::vector<Mat>& BP(std::vector<Mat>)=0;
+		virtual void update(){};
 };
 /* ** Dense Layer ** */
 
@@ -85,7 +86,7 @@ public:
 	DenseLayer(int d, int i, int o);
 	virtual std::vector<Mat>& FF(std::vector<Mat> I);
 	virtual std::vector<Mat>& BP(std::vector<Mat> G);
-	void update();
+	virtual void update();
 };
 
 DenseLayer::DenseLayer(int d,int s_i,int s_o)
@@ -128,12 +129,12 @@ private:
 	std::vector<Mat> G;
 	Size s;
 public:
-	FlattenLayer(Size s);
+	FlattenLayer();
 	virtual std::vector<Mat>& FF(std::vector<Mat> I);
 	virtual std::vector<Mat>& BP(std::vector<Mat> G);
 };
 
-FlattenLayer::FlattenLayer(Size s):s(s){
+FlattenLayer::FlattenLayer(){
 	O.push_back(Mat());
 }
 
@@ -168,20 +169,23 @@ private:
 	std::vector<Mat> O;
 	std::vector<Mat> G; //maybe not necessary? idk...
 public:
-	ActivationLayer(int d);
+	ActivationLayer();
 	virtual std::vector<Mat>& FF(std::vector<Mat> I);
 	virtual std::vector<Mat>& BP(std::vector<Mat> G);
 };
 
-ActivationLayer::ActivationLayer(int d):d(d),I(d),O(d){
-
+ActivationLayer::ActivationLayer(){
+	d=0;
 }
+
 std::vector<Mat>& ActivationLayer::FF(std::vector<Mat> _I){
+	d = I.size();
 	//assert same size
 	I.swap(_I);
 	for(int i=0;i<d;++i){
 		sigmoid(I[i],O[i]);
 	}
+	G.resize(d);
 	return O;
 }
 std::vector<Mat>& ActivationLayer::BP(std::vector<Mat> _G){
@@ -412,7 +416,26 @@ std::vector<Mat>& PoolLayer::BP(std::vector<Mat> _G){
 
 
 class ConvNet{
-
+	std::vector<Layer> L;
+	std::vector<Mat> FF(std::vector<Mat> X){
+		for(auto& l : L){
+			X = l.FF(X);
+		}
+		return X;
+	}
+	void BP(std::vector<Mat> X, std::vector<Mat> Y){
+		//sample ..
+		auto G = FF(X);
+		for(size_t i=0;i<Y.size();++i){
+			G[i] -= Y[i];
+		}
+		for(auto i = L.rbegin()+1; i != L.rend(); ++i){
+			G = i->BP(G);
+		}
+		for(auto& l : L){
+			l.update();
+		}
+	}
 };
 
 
@@ -428,7 +451,7 @@ int testConvLayer(int argc, char* argv[]){
 	img.convertTo(img,CV_32F);
 	
 	auto cl = ConvLayer(1,3,img.size());
-	auto al = ActivationLayer(3);
+	auto al = ActivationLayer();
 
 	std::vector<Mat> I;
 	I.push_back(img);
@@ -463,7 +486,7 @@ int testDenseLayer(int argc, char* argv[]){
 	imshow("M",img);
 	img.convertTo(img,CV_32F);
 	auto dl = DenseLayer(1, img.rows*img.cols, 3);
-	auto fl = FlattenLayer(img.size());
+	auto fl = FlattenLayer();
 
 	std::vector<Mat> I;
 	I.push_back(img);
@@ -525,14 +548,14 @@ int main(int argc, char* argv[]){
 	I.push_back(img);
 
 	auto cl_1 = ConvLayer(1,6,img.size());
-	auto al_1 = ActivationLayer(6);
+	auto al_1 = ActivationLayer();
 	auto pl_1 = PoolLayer(Size(5,5),Size(3,3));
 	auto cl_2 = ConvLayer(6,16,Size(127,90));
-	auto al_2 = ActivationLayer(16);
+	auto al_2 = ActivationLayer();
 	auto pl_2 = PoolLayer(Size(5,5),Size(3,3));
-	auto fl = FlattenLayer(Size(3,3)); // arbitrary... frankly don't know
+	auto fl = FlattenLayer(); // arbitrary... frankly don't know
 	auto dl = DenseLayer(1,19024,10);
-	auto al_3 = ActivationLayer(1);
+	auto al_3 = ActivationLayer();
 
 	auto m = cl_1.FF(I);
 	m = al_1.FF(m);
