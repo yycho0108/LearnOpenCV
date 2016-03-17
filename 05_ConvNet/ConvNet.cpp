@@ -232,7 +232,7 @@ ConvLayer::ConvLayer(int d_i, int d_o, Size s)
 
 	for(int o=0;o<d_o;++o){
 
-		W.push_back(Mat(s,DataType<float>::type));
+		W.push_back(Mat(5,5,DataType<float>::type));//hard-coded kernel size
 		cv::randn(W[o],cv::Scalar::all(0),cv::Scalar::all(0.1));
 
 		b.push_back(Mat(s,DataType<float>::type,Scalar::all(0.1)));//wrong dimension though!	
@@ -544,6 +544,8 @@ int main(int argc, char* argv[]){
 	m = dl.FF(m);
 	m = al_3.FF(m);
 
+	std::cout << m[0] << endl;
+
 	m = al_3.BP(m);
 	m = dl.BP(m);
 	m = fl.BP(m);
@@ -553,6 +555,8 @@ int main(int argc, char* argv[]){
 	m = cl_2.BP(m);
 	m = pl_1.BP(m);
 	m = cl_1.BP(m);
+
+	std::cout << m[0] << endl;
 
 
 
