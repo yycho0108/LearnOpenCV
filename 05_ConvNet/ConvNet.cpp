@@ -67,6 +67,98 @@ class Layer{
 		virtual std::vector<Mat>& FF(std::vector<Mat>)=0;
 		virtual std::vector<Mat>& BP(std::vector<Mat>)=0;
 };
+/* ** Dense Layer ** */
+
+class DenseLayer : public Layer{
+private:
+	int d,s_i,s_o;
+	std::vector<Mat> W;
+	std::vector<Mat> b;
+	std::vector<Mat> dW;
+	std::vector<Mat> db;
+	
+	std::vector<Mat> I;
+	std::vector<Mat> O;
+	std::vector<Mat> G; //maybe not necessary? idk...
+	//
+public:
+	DenseLayer(int d, int i, int o);
+	virtual std::vector<Mat>& FF(std::vector<Mat> I);
+	virtual std::vector<Mat>& BP(std::vector<Mat> G);
+	void update();
+};
+
+DenseLayer::DenseLayer(int d,int s_i,int s_o)
+	:d(d),s_i(s_i),s_o(s_o),W(d),b(d),dW(d),db(d),I(d),O(d),G(d){
+	for(int i=0;i<d;++i){
+		W[i] = Mat::zeros(s_o,s_i,DataType<float>::type);
+		b[i] = Mat::zeros(Size(1,s_o),DataType<float>::type);
+		dW[i] = Mat::zeros(s_o,s_i,DataType<float>::type);
+		db[i] = Mat::zeros(s_o,s_i,DataType<float>::type);
+		cv::randn(W[i],cv::Scalar::all(0),cv::Scalar::all(0.1));
+	}
+}
+
+std::vector<Mat>& DenseLayer::FF(std::vector<Mat> _I){
+	I.swap(_I);
+	for(size_t i=0;i<I.size();++i){
+		O[i] = W[i]*I[i]+b[i];
+	}
+	return O;
+}
+std::vector<Mat>& DenseLayer::BP(std::vector<Mat> _G){
+	for(int i=0;i<d;++i){
+		G[i] = W[i].t() * _G[i];
+		dW[i] = 0.6 * _G[i]*I[i].t(); //bit iffy in here, but I guess... since no sigmoid.
+		db[i] = 0.6 * _G[i];
+	}
+	return G;
+}
+void DenseLayer::update(){
+	for(int i=0;i<d;++i){
+		W[i] += dW[i];
+		b[i] += db[i];
+	}	
+}
+
+class FlattenLayer : public Layer{
+private:
+	std::vector<Mat> I;
+	std::vector<Mat> O;
+	std::vector<Mat> G;
+	Size s;
+public:
+	FlattenLayer(Size s);
+	virtual std::vector<Mat>& FF(std::vector<Mat> I);
+	virtual std::vector<Mat>& BP(std::vector<Mat> G);
+};
+
+FlattenLayer::FlattenLayer(Size s):s(s){
+	O.push_back(Mat());
+}
+
+std::vector<Mat>& FlattenLayer::FF(std::vector<Mat> I){
+	int n = I.size();
+	auto s = I[0].size();
+	O[0] = I[0].reshape(0,s.width*s.height);
+	for(int i=1;i<n;++i){
+		cv::hconcat(O[0],I[i].reshape(0,s.width*s.height),O[0]);
+	}
+	return O;
+}
+
+std::vector<Mat>& FlattenLayer::BP(std::vector<Mat> _G){
+	G.resize(I.size());
+	G.swap(_G);
+	int n = G.size();
+
+	int l = s.width*s.height;
+
+	for(int i=0;i<n;++i){
+		G[i] = _G[0](cv::Rect(0,0,1,l)).reshape(0,s.height);
+	}
+	return G;
+}
 
 /* ** Activation Layer ** */
 class ActivationLayer : public Layer{
@@ -293,11 +385,11 @@ std::vector<Mat>& PoolLayer::FF(std::vector<Mat> _I){
 
 		}
 	}
-	//...
 	
 	return O;
 }
 std::vector<Mat>& PoolLayer::BP(std::vector<Mat> _G){
+	G.resize(_G.size());
 
 	int h = S.size();
 	int w = S[0].size();
@@ -317,13 +409,6 @@ std::vector<Mat>& PoolLayer::BP(std::vector<Mat> _G){
 	return G;
 }
 
-//std::vector<Mat>& PoolLayer::FF(std::vector<Mat> I){
-//	//not 
-//	for(size_t i=0;i<I.size();++i){
-//		O[i] = ave_pool(I[i],o); //pyrdown
-//	}
-//	return O;
-//}
 
 class ConvNet{
 
@@ -366,6 +451,37 @@ int testConvLayer(int argc, char* argv[]){
 	return 0;
 }
 
+int testDenseLayer(int argc, char* argv[]){
+	if(argc != 2){
+		cout << "SPECIFY IMG FILE" << endl;
+		return -1;
+	}
+	auto img = imread(argv[1],IMREAD_ANYDEPTH);
+	
+	namedWindow("M",WINDOW_AUTOSIZE);
+	imshow("M",img);
+	img.convertTo(img,CV_32F);
+	auto dl = DenseLayer(1, img.rows*img.cols, 3);
+	auto fl = FlattenLayer(img.size());
+
+	std::vector<Mat> I;
+	I.push_back(img);
+
+	auto m = fl.FF(I);
+	m = dl.FF(m);
+	dl.BP(m);
+
+	m[0].convertTo(m[0],CV_8U);
+	//m[1].convertTo(m[1],CV_8U);
+	//m[2].convertTo(m[2],CV_8U);
+
+	imshow("M0", m[0]);
+	//imshow("M1", m[1]);
+	//imshow("M2", m[2]);
+	waitKey();
+	return 0;
+}
+
 int testPoolLayer(int argc, char* argv[]){
 	if(argc != 2){
 		cout << "SPECIFY IMG FILE" << endl;
@@ -381,6 +497,7 @@ int testPoolLayer(int argc, char* argv[]){
 	I.push_back(img);
 
 	auto m = pl.FF(I);
+	pl.BP(m);
 	m[0].convertTo(m[0],CV_8U);
 
 	imshow("M", m[0]);
@@ -390,7 +507,8 @@ int testPoolLayer(int argc, char* argv[]){
 
 
 int main(int argc, char* argv[]){
-	testPoolLayer(argc,argv);
+	//testPoolLayer(argc,argv);
+	testDenseLayer(argc,argv);
 	/*if(argc != 2){
 		cout << "SPECIFY CORRECT ARGS" << endl;
 		return -1;
