@@ -51,8 +51,9 @@ void sigmoidPrime(Mat& src, Mat& dst){
 
 void convolve(cv::InputArray I, cv::OutputArray O,cv::InputArray W){
 	return cv::filter2D(I,O,-1,W,Point(-1,-1),0.0,BORDER_CONSTANT);//change depth later
+	//currently zero-padding
 }
-Mat max_pool(Mat& m, Size s){
+Mat ave_pool(Mat& m, Size s){
 	Mat res;
 	cv::pyrDown(m,res,s,cv::BORDER_REPLICATE);
 	return res;
@@ -162,7 +163,7 @@ std::vector<Mat>& ConvLayer::FF(std::vector<Mat> _I){
 			if(connection[i][o]){
 				cout << i << ',' <<  o << endl;
 				convolve(I[i],O[o],W[o]);
-				cv::filter2D(I[i],O[o],I[i].depth(),W[o]);//change depth later
+				//cv::filter2D(I[i],O[o],I[i].depth(),W[o]);//change depth later
 				//and maybe even replace this function with something less rigid.
 			}
 		}
@@ -174,7 +175,7 @@ std::vector<Mat>& ConvLayer::FF(std::vector<Mat> _I){
 		//subsample
 		//auto w = O[o].size().width/2;
 		//auto h = O[o].size().height/2;
-		//O[o] = max_pool(O[o],cv::Size(w,h));
+		//O[o] = ave_pool(O[o],cv::Size(w,h));
 	}
 	return O;
 }
@@ -232,13 +233,97 @@ void ConvLayer::update(){
 	}
 }
 /* ** Pooling Layer ** */
-class PoolLayer{
-	Size i,o;
+//currently only supports ave-pooling by opencv
+class PoolLayer : public Layer{
+	Size s_p,s_s; //pooling size, stride size
+	std::vector<std::vector<std::vector<Point>>> S; //switches
+	std::vector<Mat> I;
+	std::vector<Mat> O;
+	std::vector<Mat> G;
+
 public:
 	std::vector<Mat>& FF(std::vector<Mat> I);
 	std::vector<Mat>& BP(std::vector<Mat> G);
 	PoolLayer(Size i, Size o);
 };
+
+PoolLayer::PoolLayer(Size s_p, Size s_s):s_p(s_p),s_s(s_s){
+
+}
+
+std::vector<Mat>& PoolLayer::FF(std::vector<Mat> _I){
+	S.resize(_I.size());
+	O.resize(_I.size());
+
+	I.swap(_I);
+	auto pw = s_p.width;
+	auto ph = s_p.height;
+	auto sw = s_s.width;
+	auto sh = s_s.height;
+	auto iw = I[0].size().width;
+	auto ih = I[0].size().height;
+	auto it_w = (iw - pw + sw-1) / sw;
+	auto it_h = (ih - ph + sh-1) / sh;
+
+
+	double maxVal;
+	int maxIdx[2];
+
+	for(size_t i=0;i<I.size();++i){
+		S[i].resize(it_h);
+		O[i] = Mat(it_h,it_w,DataType<float>::type);
+		for(int _y=0;_y<it_h;++_y){
+			S[i][_y].resize(it_w);
+			for(int _x=0;_x<it_w;++_x){
+
+				auto y = _y*sh;
+				auto x = _x*sw;
+
+				if(y+ph >= ih || x+pw >= iw){
+					auto _ph = min(ph,ih-y);
+					auto _pw = min(pw,iw-x);
+					cv::minMaxIdx(I[i](Rect(x,y,_pw,_ph)),nullptr,&maxVal,nullptr,maxIdx);
+				}else{
+					cv::minMaxIdx(I[i](Rect(x,y,pw,ph)),nullptr,&maxVal,nullptr,maxIdx);
+				}
+				S[i][_y][_x] = Point(maxIdx[1],maxIdx[0]);
+				O[i].at<float>(_y,_x) = maxVal;
+
+			}
+
+		}
+	}
+	//...
+	
+	return O;
+}
+std::vector<Mat>& PoolLayer::BP(std::vector<Mat> _G){
+
+	int h = S.size();
+	int w = S[0].size();
+
+	auto sw = s_s.width;
+	auto sh = s_s.height;
+
+	for(size_t i=0;i<_G.size();++i){
+		G[i] = Mat::zeros(I[i].size(),DataType<float>::type);
+		for(int _y=0;_y<h;++_y){
+			for(int _x=0;_x<w;++_x){
+				auto& loc = S[i][_y][_x];
+				G[i].at<float>(_y*sh +loc.y, _x*sw + loc.x) = _G[i].at<float>(_y,_x);
+			}
+		}
+	}
+	return G;
+}
+
+//std::vector<Mat>& PoolLayer::FF(std::vector<Mat> I){
+//	//not 
+//	for(size_t i=0;i<I.size();++i){
+//		O[i] = ave_pool(I[i],o); //pyrdown
+//	}
+//	return O;
+//}
 
 class ConvNet{
 
@@ -281,8 +366,31 @@ int testConvLayer(int argc, char* argv[]){
 	return 0;
 }
 
+int testPoolLayer(int argc, char* argv[]){
+	if(argc != 2){
+		cout << "SPECIFY IMG FILE" << endl;
+		return -1;
+	}
+	auto img = imread(argv[1],IMREAD_ANYDEPTH);
+	
+	namedWindow("M",WINDOW_AUTOSIZE);
+	imshow("M",img);
+	img.convertTo(img,CV_32F);
+	auto pl = PoolLayer(Size(5,5),Size(2,2));
+	std::vector<Mat> I;
+	I.push_back(img);
+
+	auto m = pl.FF(I);
+	m[0].convertTo(m[0],CV_8U);
+
+	imshow("M", m[0]);
+	waitKey();
+	return 0;
+}
+
+
 int main(int argc, char* argv[]){
-	testConvLayer(argc,argv);
+	testPoolLayer(argc,argv);
 	/*if(argc != 2){
 		cout << "SPECIFY CORRECT ARGS" << endl;
 		return -1;
