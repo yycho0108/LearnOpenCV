@@ -63,8 +63,8 @@ Mat max_pool(Mat& m, Size s){
 
 class Layer{
 	public:
-		virtual std::vector<Mat>& FF(std::vector<Mat>);
-		virtual std::vector<Mat>& BP(std::vector<Mat>);
+		virtual std::vector<Mat>& FF(std::vector<Mat>)=0;
+		virtual std::vector<Mat>& BP(std::vector<Mat>)=0;
 };
 
 /* ** Activation Layer ** */
@@ -83,22 +83,22 @@ public:
 ActivationLayer::ActivationLayer(int d):d(d),I(d),O(d){
 
 }
-std::vector<Mat>& ActivationLayer::FF(std::vector<Mat> I){
+std::vector<Mat>& ActivationLayer::FF(std::vector<Mat> _I){
 	//assert same size
-	this->I.swap(I);
+	I.swap(_I);
 	for(int i=0;i<d;++i){
-		sigmoid(this->I[i],O[i]);
+		sigmoid(I[i],O[i]);
 	}
 	return O;
 }
-std::vector<Mat>& ActivationLayer::BP(std::vector<Mat> G){
+std::vector<Mat>& ActivationLayer::BP(std::vector<Mat> _G){
 	Mat tmp;
 	for(int i=0;i<d;++i){
 		sigmoidPrime(I[i],tmp);
-		G[i].mul(tmp);
+		_G[i].mul(tmp);
 	}
-	this->G.swap(G);
-	return this->G;
+	G.swap(_G);
+	return G;
 }
 
 /* ** Convolution Layer ** */
@@ -139,7 +139,7 @@ ConvLayer::ConvLayer(int d_i, int d_o, Size s)
 	for(int o=0;o<d_o;++o){
 
 		W.push_back(Mat(5,5,DataType<float>::type));
-		cv::randu(W[o],cv::Scalar::all(0),cv::Scalar::all(0.1));
+		cv::randn(W[o],cv::Scalar::all(0),cv::Scalar::all(0.1));
 
 		b.push_back(Mat(s,DataType<float>::type,Scalar::all(0.1)));//wrong dimension though!	
 		O.push_back(Mat(s,DataType<float>::type));//wrong dimension though!	
@@ -268,7 +268,7 @@ int testConvLayer(int argc, char* argv[]){
 
 	auto m = cl.FF(I);
 	cl.BP(m);
-	//m = al.FF(m);
+	m = al.FF(m);
 
 	m[0].convertTo(m[0],CV_8U);
 	m[1].convertTo(m[1],CV_8U);
