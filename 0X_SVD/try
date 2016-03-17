@@ -1,0 +1,5 @@
+#!/bin/bash
+cd build/
+./SVD ../../Resources/tree.png 3
+cd ..
+
