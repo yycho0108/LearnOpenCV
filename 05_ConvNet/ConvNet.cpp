@@ -53,7 +53,7 @@ void sigmoidPrime(Mat& src, Mat& dst){
 	parallel_for_(Range(0,dst.rows*dst.cols),ForEach(dst.data,[](float a){return sigmoidPrime(a);}));
 }
 
-void SoftMax(Mat& src, Mat& dst){
+void softMax(Mat& src, Mat& dst){
 	if(&dst != &src){
 		src.copyTo(dst);
 	}
@@ -285,10 +285,14 @@ ConvLayer::ConvLayer(int d_i, int d_o)
 	// d_i = depth of input layers
 	// d_o = depth of output layers
 	connection = new bool*[d_i];
+	//often o>i
 	for(int i=0;i<d_i;++i){
 		connection[i] = new bool[d_o];
 		for(int o=0;o<d_o;++o){
-			connection[i][o] = true;
+			connection[i][o] = ((o%3) != (i%3));
+			/*if(o%3 != i%3){ // ~2/3 connection
+				connection[i][o] = true;
+			}*/
 		}
 	}
 
@@ -532,7 +536,7 @@ std::vector<Mat>& SoftMaxLayer::FF(std::vector<Mat> _I){
 	G.resize(d);
 	I.swap(_I);
 	for(int i=0;i<d;++i){
-		SoftMax(I[i],O[i]);
+		softMax(I[i],O[i]);
 	}
 	//cout << "O" << endl << O[0] << endl;
 	return O;
@@ -867,13 +871,24 @@ int testMNIST(int argc, char* argv[]){
 
 	ConvNet net;
 
-	net.push_back(new FlattenLayer(1));
+	/*net.push_back(new FlattenLayer(1));
 	net.push_back(new DenseLayer(1,75));
 	net.push_back(new ActivationLayer());
 	net.push_back(new DenseLayer(1,10));
 	net.push_back(new ActivationLayer());
 	net.push_back(new SoftMaxLayer());
-
+	*/
+	net.push_back(new ConvLayer(1,6));
+	net.push_back(new ActivationLayer());
+	net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
+	net.push_back(new ConvLayer(6,16));
+	net.push_back(new ActivationLayer());
+	net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
+	net.push_back(new FlattenLayer(16));
+	net.push_back(new DenseLayer(1,84));
+	net.push_back(new ActivationLayer());
+	net.push_back(new DenseLayer(1,10));
+	net.push_back(new ActivationLayer());
 	net.setup(Size(28,28));
 	
 	Parser trainer("../data/trainData","../data/trainLabel");
@@ -881,7 +896,7 @@ int testMNIST(int argc, char* argv[]){
 	std::vector<Mat> X(1),Y(1);
 	int i=0;
 
-	while (trainer.read(d,l)){
+	while (trainer.read(d,l) && i < 10000){
 		cout << ++i << endl;
 		X[0] = d;
 		Y[0] = l;
