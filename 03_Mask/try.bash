@@ -1,4 +1,4 @@
 #!/bin/bash
 cd build
-./Mask ../../Resources/sample.png
+./Mask ../../Resources/tree.png
 cd ..

@@ -62,10 +62,16 @@ void softMax(Mat& src, Mat& dst){
 	cv::divide(dst,s,dst);
 }
 
-void convolve(cv::InputArray I, cv::OutputArray O,cv::InputArray W){
+void correlate(cv::InputArray I, cv::OutputArray O,cv::InputArray W, bool flip=false){
+	if(flip){
+		Mat K;
+		cv::flip(W,K,-1);
+		return cv::filter2D(I,O,-1,K,Point(-1,-1),0.0,BORDER_CONSTANT);//convolution
+	}else{
+		return cv::filter2D(I,O,-1,W,Point(-1,-1),0.0,BORDER_CONSTANT);//correlation
+	}
 	//cv::filter2D(I,O,-1,W,Point(-1,-1),0.0,BORDER_CONSTANT);
 	//cout << "CONVOLVE : " <<  I.size() << endl <<  O.size() << endl;
-	return cv::filter2D(I,O,-1,W,Point(-1,-1),0.0,BORDER_CONSTANT);//change depth later
 	//currently same-size
 	//currently zero-padding
 }
@@ -139,15 +145,15 @@ std::vector<Mat>& DenseLayer::FF(std::vector<Mat> _I){
 std::vector<Mat>& DenseLayer::BP(std::vector<Mat> _G){
 	for(int i=0;i<d;++i){
 		G[i] = W[i].t() * _G[i];
-		dW[i] = 0.6 * _G[i]*I[i].t(); //bit iffy in here, but I guess... since no sigmoid.
-		db[i] = 0.6 * _G[i];
+		dW[i] = _G[i]*I[i].t(); //bit iffy in here, but I guess... since no sigmoid.
+		db[i] = _G[i];
 	}
 	return G;
 }
 void DenseLayer::update(){
 	for(int i=0;i<d;++i){
-		W[i] += dW[i];
-		b[i] += db[i];
+		W[i] += 0.6 * dW[i];
+		b[i] += 0.6 * db[i];
 	}	
 }
 Size DenseLayer::outputSize(){
@@ -263,6 +269,7 @@ private:
 	std::vector<Mat> W;
 	std::vector<Mat> b;
 	std::vector<Mat> dW;
+	std::vector<Mat> db;
 
 	std::vector<Mat> I;
 	std::vector<Mat> O;
@@ -317,7 +324,7 @@ std::vector<Mat>& ConvLayer::FF(std::vector<Mat> _I){
 		for(int o=0;o<d_o;++o){
 			if(connection[i][o]){
 				//cout << i << ',' <<  o << endl;
-				convolve(I[i],O[o],W[o]);
+				correlate(I[i],O[o],W[o],true); //true convolution
 				//cv::filter2D(I[i],O[o],I[i].depth(),W[o]);//change depth later
 				//and maybe even replace this function with something less rigid.
 			}
@@ -361,10 +368,19 @@ std::vector<Mat>& ConvLayer::BP(std::vector<Mat> _G){
 		//sigmoidPrime(O[o],O[o]);
 		//_G[o] = _G[o].mul(O[o]); //element-wise --> don't need since activation layer is separate now
 		dW[o] = Mat::zeros(W[o].size(),DataType<float>::type);//initialize dW
+		db[o] = Mat::zeros(b[o].size(),DataType<float>::type);
+
+		//Mat K;
+		//flip(W[o],K,-1);
 
 		for(int i=0;i<d_i;++i){ //for each input channel
-			//G[i].setTo(Scalar(0)); //set all elements to zero
+			G[i].setTo(Scalar(0)); //set all elements to zero
+		
 			if(connection[i][o]){ //if the channels are related.. 
+
+				correlate(_G[o],G[i],W[o],false); //correlation (flip kernel)
+				//correlate(_G[o],dW[o],I[i],false);
+				
 				for(int y=0; y<ih;++y){
 					for(int x=0;x<iw;++x){
 
@@ -373,9 +389,9 @@ std::vector<Mat>& ConvLayer::BP(std::vector<Mat> _G){
 						auto xmin = max(x-fwr,0);
 						auto xmax = min(x+fwr+1,ow);
 						
-						G[i](cv::Rect(xmin,ymin,xmax-xmin,ymax-ymin)) += 
-							W[o](cv::Rect(xmin-x+fwr,ymin-y+fhr,xmax-xmin,ymax-ymin))
-						   	* _G[o].at<float>(y,x);
+						//G[i](cv::Rect(xmin,ymin,xmax-xmin,ymax-ymin)) += 
+						//	K(cv::Rect(xmin-x+fwr,ymin-y+fhr,xmax-xmin,ymax-ymin))
+						//   	* _G[o].at<float>(y,x);
 						dW[o](cv::Rect(xmin-x+fwr,ymin-y+fhr,xmax-xmin,ymax-ymin)) += I[i](cv::Rect(xmin,ymin,xmax-xmin,ymax-ymin)) * _G[o].at<float>(y,x);
 						//may not be right index
 					}
@@ -383,13 +399,15 @@ std::vector<Mat>& ConvLayer::BP(std::vector<Mat> _G){
 			}
 		}
 
+		db[o] += _G[o];
 	}
 
 	return G;
 }
 void ConvLayer::update(){
 	for(int o=0;o<d_o;++o){
-		W[o] += dW[o];
+		W[o] += 0.6 * dW[o];
+		b[o] += 0.6 * db[o];
 	}
 }
 
@@ -397,7 +415,9 @@ void ConvLayer::setup(Size s){
 	this->s = s;
 	b.clear();
 	O.clear();
+	db.clear();
 	for(int o=0;o<d_o;++o){
+		db.push_back(Mat(s,DataType<float>::type,Scalar::all(0.0)));//wrong dimension though!	
 		b.push_back(Mat(s,DataType<float>::type,Scalar::all(0.1)));//wrong dimension though!	
 		O.push_back(Mat(s,DataType<float>::type));//wrong dimension though!	
 	}
@@ -536,13 +556,19 @@ std::vector<Mat>& SoftMaxLayer::FF(std::vector<Mat> _I){
 	G.resize(d);
 	I.swap(_I);
 	for(int i=0;i<d;++i){
-		softMax(I[i],O[i]);
+		I[i].copyTo(O[i]);
+		//currently not softmax
+		//becaues I don't know what to do for softmax.
+		//cost --> parallel_for_(Range(0,O[i].rows*O[i].cols),ForEach(O[i].data,[](float a){return 0.5 * a*a;}));
+		//softMax(I[i],O[i]);
 	}
 	//cout << "O" << endl << O[0] << endl;
 	return O;
 }
-std::vector<Mat>& SoftMaxLayer::BP(std::vector<Mat> _G){
-	G.swap(_G);
+std::vector<Mat>& SoftMaxLayer::BP(std::vector<Mat> Y){
+	for(int i=0;i<d;++i){
+		cv::subtract(Y[i],O[i],G[i]); //G[i] = Y[i] - O[i];
+	}
 	return G;
 }
 void SoftMaxLayer::setup(Size s){
@@ -577,17 +603,8 @@ public:
 
 	void BP(std::vector<Mat> X, std::vector<Mat> Y){
 		//sample ..
-		auto _G = FF(X);
-		auto& G = _G;
-		//auto& WTF = G[0]; // Mat	
-		//cout << "G_p : " << endl << G[0] << endl;
-		//cout << "Y[0] : " << endl << Y[0] << endl;
-		
-		for(size_t i=0;i<Y.size();++i){
-			cv::subtract(Y[i],G[i],G[i]);
-		}
-
-		//cout << "G_n : " << endl << G[0] << endl;
+		FF(X);
+		auto G = Y;
 
 		for(auto i = L.rbegin(); i != L.rend(); ++i){
 			G = (*i)->BP(G);
@@ -690,7 +707,7 @@ int testPoolLayer(int argc, char* argv[]){
 	namedWindow("M",WINDOW_AUTOSIZE);
 	imshow("M",img);
 	img.convertTo(img,CV_32F);
-	auto pl = PoolLayer(Size(5,5),Size(2,2));
+	auto pl = PoolLayer(Size(2,2),Size(2,2));
 	std::vector<Mat> I;
 	I.push_back(img);
 
@@ -779,14 +796,14 @@ int testConvNet(int argc, char* argv[]){
 	Y.push_back(cla);
 	
 	ConvNet net;
-	net.push_back(new ConvLayer(1,6)); //having to specify img.size() is annoying
+	net.push_back(new ConvLayer(1,6));
 	net.push_back(new ActivationLayer());
 	net.push_back(new PoolLayer(Size(5,5),Size(3,3)));
-	net.push_back(new ConvLayer(6,16)); //having to know 127,90 is annoying
+	net.push_back(new ConvLayer(6,16));
 	net.push_back(new ActivationLayer());
 	net.push_back(new PoolLayer(Size(5,5),Size(3,3)));
 	net.push_back(new FlattenLayer(16));
-	net.push_back(new DenseLayer(1,20)); //having to know 19024 is annoying
+	net.push_back(new DenseLayer(1,20));
 	net.push_back(new ActivationLayer());
 	net.push_back(new SoftMaxLayer());
 	net.setup(img.size());
@@ -869,6 +886,10 @@ int argmax(Mat& m){
 
 int testMNIST(int argc, char* argv[]){
 
+	int lim = 60000;
+	if(argc != 1){
+		lim = std::atoi(argv[1]);
+	}
 	ConvNet net;
 
 	/*net.push_back(new FlattenLayer(1));
@@ -888,7 +909,8 @@ int testMNIST(int argc, char* argv[]){
 	net.push_back(new DenseLayer(1,84));
 	net.push_back(new ActivationLayer());
 	net.push_back(new DenseLayer(1,10));
-	net.push_back(new ActivationLayer());
+	//net.push_back(new ActivationLayer()); maybe collides with softmax?
+	net.push_back(new SoftMaxLayer());
 	net.setup(Size(28,28));
 	
 	Parser trainer("../data/trainData","../data/trainLabel");
@@ -896,8 +918,13 @@ int testMNIST(int argc, char* argv[]){
 	std::vector<Mat> X(1),Y(1);
 	int i=0;
 
-	while (trainer.read(d,l) && i < 10000){
-		cout << ++i << endl;
+	while (trainer.read(d,l) && i < lim){
+		++i;
+
+		if(!(i%100)){
+			cout << i << endl;
+		}
+
 		X[0] = d;
 		Y[0] = l;
 		net.BP(X,Y);
@@ -926,6 +953,7 @@ int testMNIST(int argc, char* argv[]){
 }
 
 int main(int argc, char* argv[]){
-	return testMNIST(argc,argv);
+	//return testPoolLayer(argc,argv);
 	//return testConvNet(argc,argv);
+	return testMNIST(argc,argv);
 }
