@@ -532,6 +532,7 @@ std::vector<Mat>& SoftMaxLayer::FF(std::vector<Mat> _I){
 	for(int i=0;i<d;++i){
 		SoftMax(I[i],O[i]);
 	}
+	cout << "O" << endl << O[0] << endl;
 	return O;
 }
 std::vector<Mat>& SoftMaxLayer::BP(std::vector<Mat> _G){
@@ -559,10 +560,10 @@ public:
 		}
 	}
 
-	std::vector<Mat> FF(std::vector<Mat> X){
+	std::vector<Mat> FF(std::vector<Mat> _X){
+		auto& X = _X;
 		//cout << "X : " << endl << X[0] << endl;
 		for(auto& l : L){
-			//cout << "X : " << endl << X[0] << endl;
 			X = l->FF(X);
 		}
 		return X;
@@ -570,12 +571,16 @@ public:
 
 	void BP(std::vector<Mat> X, std::vector<Mat> Y){
 		//sample ..
-		auto G = FF(X);
+		auto _G = FF(X);
+		auto& G = _G;
+		//auto& WTF = G[0]; // Mat	
 		//cout << "G_p : " << endl << G[0] << endl;
 		//cout << "Y[0] : " << endl << Y[0] << endl;
+		
 		for(size_t i=0;i<Y.size();++i){
-			G[i] = Y[i] - G[i];
+			cv::subtract(Y[i],G[i],G[i]);
 		}
+
 		//cout << "G_n : " << endl << G[0] << endl;
 
 		for(auto i = L.rbegin(); i != L.rend(); ++i){
@@ -586,6 +591,8 @@ public:
 		for(auto& l : L){
 			l->update();
 		}
+
+		//cout << "WTF" << endl << WTF << endl;
 	}
 	void setup(Size s){
 		for(auto& l : L){
@@ -752,48 +759,43 @@ int testConvNet(int argc, char* argv[]){
 		cout << "SPECIFY CORRECT ARGS" << endl;
 		return -1;
 	}
-	//auto img = imread(argv[1],IMREAD_ANYDEPTH);
-	//namedWindow("M",WINDOW_AUTOSIZE);
-	//imshow("M",img);
-	//img.convertTo(img,CV_32F,1/256.0);
-	Mat img = (Mat_<float>(3,3) << 1,9,4,7,2,8,3,6,5) * 0.1;
-	Mat cla = (Mat_<float>(5,1) << 0.3,0.1,0.4,0.05,0.15);
+	auto img = imread(argv[1],IMREAD_ANYDEPTH);
+	namedWindow("M",WINDOW_AUTOSIZE);
+	imshow("M",img);
+	img.convertTo(img,CV_32F,1/256.0);
+
+	Mat cla = (Mat_<float>(10,1) << 1,4,2,6,8,0,5,3,9,7)/45.0;
+
 	std::vector<Mat> X;
 	X.push_back(img);
-
 	std::vector<Mat> Y;
 	Y.push_back(cla);
-
-	ConvNet net;
-	//net.push_back(new ConvLayer(1,6)); //having to specify img.size() is annoying
-	//net.push_back(new ActivationLayer());
-	//net.push_back(new PoolLayer(Size(5,5),Size(3,3)));
-	//net.push_back(new ConvLayer(6,16)); //having to know 127,90 is annoying
-	//net.push_back(new ActivationLayer());
-	//net.push_back(new PoolLayer(Size(5,5),Size(3,3)));
-	//net.push_back(new FlattenLayer(16));
-	//net.push_back(new DenseLayer(1,10)); //having to know 19024 is annoying
-	//net.push_back(new ActivationLayer());
-	//net.push_back(new SoftMaxLayer());
-	//net.setup(img.size());
 	
-	net.push_back(new FlattenLayer(1));
-	net.push_back(new DenseLayer(1,7)); //d, s_o
+	ConvNet net;
+	net.push_back(new ConvLayer(1,6)); //having to specify img.size() is annoying
 	net.push_back(new ActivationLayer());
-	net.push_back(new DenseLayer(1,5));
+	net.push_back(new PoolLayer(Size(5,5),Size(3,3)));
+	net.push_back(new ConvLayer(6,16)); //having to know 127,90 is annoying
+	net.push_back(new ActivationLayer());
+	net.push_back(new PoolLayer(Size(5,5),Size(3,3)));
+	net.push_back(new FlattenLayer(16));
+	net.push_back(new DenseLayer(1,10)); //having to know 19024 is annoying
 	net.push_back(new ActivationLayer());
 	net.push_back(new SoftMaxLayer());
 	net.setup(img.size());
 
 	auto m = net.FF(X);
 	
-	std::cout << "M" << endl << m[0] << endl;
-	for(int i=0;i<100;++i)
-		net.BP(X,Y);
+	//std::cout << "M" << endl << m[0] << endl;
 
-	std::cout << "M" << endl << m[0] << endl;
+	for(int i=0;i<1;++i){
+		cout << i << endl;
+		net.BP(X,Y);
+	}
+
+	//std::cout << "_M_" << endl << m[0] << endl;
 	m = net.FF(X);
-	std::cout << "M" << endl << m[0] << endl;
+	//std::cout << "M" << endl << m[0] << endl;
 	std::cout << "TARGET " << endl << Y[0] << endl;
 	//auto m = net.FF(I);
 	//std::cout << "M" << endl << m[0] << endl;
