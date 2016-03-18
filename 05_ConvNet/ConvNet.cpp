@@ -3,6 +3,8 @@
 #include <opencv2/imgproc/imgproc.hpp>
 #include <functional>
 #include <iostream>
+#include <fstream>
+
 #include <ctime>
 
 using namespace cv;
@@ -532,7 +534,7 @@ std::vector<Mat>& SoftMaxLayer::FF(std::vector<Mat> _I){
 	for(int i=0;i<d;++i){
 		SoftMax(I[i],O[i]);
 	}
-	cout << "O" << endl << O[0] << endl;
+	//cout << "O" << endl << O[0] << endl;
 	return O;
 }
 std::vector<Mat>& SoftMaxLayer::BP(std::vector<Mat> _G){
@@ -764,7 +766,8 @@ int testConvNet(int argc, char* argv[]){
 	imshow("M",img);
 	img.convertTo(img,CV_32F,1/256.0);
 
-	Mat cla = (Mat_<float>(10,1) << 1,4,2,6,8,0,5,3,9,7)/45.0;
+	Mat cla = (Mat_<float>(20,1) << 0,1,2,3,4,5,6,7,8,9,
+			10,11,12,13,14,15,16,17,18,19)/210.0;
 
 	std::vector<Mat> X;
 	X.push_back(img);
@@ -779,7 +782,7 @@ int testConvNet(int argc, char* argv[]){
 	net.push_back(new ActivationLayer());
 	net.push_back(new PoolLayer(Size(5,5),Size(3,3)));
 	net.push_back(new FlattenLayer(16));
-	net.push_back(new DenseLayer(1,10)); //having to know 19024 is annoying
+	net.push_back(new DenseLayer(1,20)); //having to know 19024 is annoying
 	net.push_back(new ActivationLayer());
 	net.push_back(new SoftMaxLayer());
 	net.setup(img.size());
@@ -815,6 +818,99 @@ int testConvNet(int argc, char* argv[]){
 	return 0;
 }
 
+class Parser{
+
+private:
+	ifstream f_d;
+	ifstream f_l;
+	unsigned char buf_d[28*28];
+	unsigned char buf_l[1];
+public:
+	Parser(string d, string l){
+		f_d.open(d);
+		f_l.open(l);
+		reset();
+	}
+	bool read(Mat& d, Mat& l){
+		//std::cout << "READING " << std::endl;
+
+		f_d.read((char*)buf_d,28*28);
+		f_l.read((char*)buf_l,1);
+
+		d = Mat(28,28,DataType<unsigned char>::type,buf_d);
+		d.convertTo(d,DataType<float>::type,1/256.0);
+
+		l = Mat::zeros(10,1,DataType<float>::type);
+		l.at<float>(buf_l[0],0) = 1.0;
+		
+		//std::cout << "READING OVER" << std::endl;
+		return f_d && f_l;
+	}
+	void reset(){
+		f_d.clear();
+		f_d.seekg(16,ios::beg);
+		f_l.clear();
+		f_l.seekg(8,ios::beg);
+	}
+	~Parser(){
+		f_d.close();
+		f_l.close();
+	}
+
+};
+int argmax(Mat& m){
+	auto i = std::max_element(m.begin<float>(),m.end<float>());
+	return std::distance(m.begin<float>(),i);
+}
+
+int testMNIST(int argc, char* argv[]){
+
+	ConvNet net;
+
+	net.push_back(new FlattenLayer(1));
+	net.push_back(new DenseLayer(1,75));
+	net.push_back(new ActivationLayer());
+	net.push_back(new DenseLayer(1,10));
+	net.push_back(new ActivationLayer());
+	net.push_back(new SoftMaxLayer());
+
+	net.setup(Size(28,28));
+	
+	Parser trainer("../data/trainData","../data/trainLabel");
+	Mat d,l;
+	std::vector<Mat> X(1),Y(1);
+	int i=0;
+
+	while (trainer.read(d,l)){
+		cout << ++i << endl;
+		X[0] = d;
+		Y[0] = l;
+		net.BP(X,Y);
+	}
+
+	Parser tester("../data/testData","../data/testLabel");
+
+	int cor=0;
+	int inc = 0;
+
+	while(tester.read(d,l)){
+		X[0] = d;
+		Y[0] = l;
+		//cout << "OUTPUT : " << endl << net.FF(X)[0].t() << endl;
+		//cout << "TARGET : " << endl <<  Y[0].t() << endl;
+		auto y = argmax(net.FF(X)[0]);
+		auto t = argmax(Y[0]);
+		y==t?(++cor):(++inc);
+		cout << "O[" << argmax(net.FF(X)[0]) << "]:T[" << argmax(Y[0]) <<"]"<<endl;
+		printf("%d cor, %d inc", cor,inc);
+
+	}
+
+	return 0;
+
+}
+
 int main(int argc, char* argv[]){
-	return testConvNet(argc,argv);
+	return testMNIST(argc,argv);
+	//return testConvNet(argc,argv);
 }
