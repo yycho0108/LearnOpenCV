@@ -376,6 +376,7 @@ std::vector<Mat>& ConvLayer::FF(std::vector<Mat> _I){
 	//cout << "W[0] : " << endl << W[0] << endl;
 
 	for(int o=0;o<d_o;++o){
+		O[o] = Mat::zeros(O[o].size(),O[o].type());
 		//cout << "W[o] : " << endl << W[o] << endl;
 		for(int i=0;i<d_i;++i){
 			if(connection[o][i]){
@@ -990,8 +991,8 @@ int testMNIST(int argc, char* argv[]){
 	
 	/* ** CONV LAYER TEST ** */
 	net.push_back(new ConvLayer(1,1));
-	//net.push_back(new ActivationLayer("ReLU"));
-	//net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
+	net.push_back(new ActivationLayer("ReLU"));
+	net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
 
 	//net.push_back(new ConvLayer(6,16));
 	//net.push_back(new ActivationLayer("ReLU"));
