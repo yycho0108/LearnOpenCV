@@ -71,6 +71,14 @@ float ReLUPrime(float x){
 	return 0>x?1:0;
 }
 
+//float tanh(float x){
+//	return tanh(x);
+//}
+float tanhPrime(float x){
+	x = tanh(x);
+	return x * (1-x);
+}
+
 void activate(Mat& src, Mat& dst, float (*f)(float)){
 	if(&dst != &src){
 		src.copyTo(dst);
@@ -281,6 +289,9 @@ ActivationLayer::ActivationLayer(std::string _f){
 	}else if (_f == "relu"){
 		f = ReLU;
 		f_d = ReLUPrime;
+	}else if (_f == "tanh"){
+		f = tanh;	
+		f_d = tanhPrime;
 	}else{
 		throw "WRONG ACTIVATION FUNCTION!!";
 	}
@@ -414,7 +425,7 @@ std::vector<Mat>& ConvLayer::BP(std::vector<Mat> _G){
 	auto fwr = W[0].size().width/2; //kernel size
 	auto fhr = W[0].size().height/2;
 
-	cout << _G[0] << endl;	
+	//cout << _G[0] << endl;	
 
 	for(int i=0;i<d_i;++i){
 		G[i] = Mat::zeros(I[i].size(),DataType<float>::type);
@@ -996,7 +1007,7 @@ int testMNIST(int argc, char* argv[]){
 	net.push_back(new ActivationLayer("relu"));
 	net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
 
-	//net.push_back(new ConvLayer(1,1));
+	//net.push_back(new ConvLayer(2,1));
 	//net.push_back(new ActivationLayer("relu"));
 	//net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
 	
