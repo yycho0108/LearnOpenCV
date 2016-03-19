@@ -65,10 +65,10 @@ float softplusPrime(float x){
 	return sigmoid(x); 
 }
 float ReLU(float x){
-	return 0>x?x:0;
+	return x>0?x:0;
 }
 float ReLUPrime(float x){
-	return 0>x?1:0;
+	return x>0?1:0;
 }
 
 //float tanh(float x){
@@ -176,7 +176,7 @@ void DenseLayer::setup(Size s){
 		b[i] = Mat::zeros(Size(1,s_o),DataType<float>::type);
 		dW[i] = Mat::zeros(s_o,s_i,DataType<float>::type);
 		db[i] = Mat::zeros(s_o,s_i,DataType<float>::type);
-		cv::randn(W[i],cv::Scalar::all(0),cv::Scalar::all(0.1));
+		cv::randu(W[i],cv::Scalar::all(0),cv::Scalar::all(0.1));
 	}
 
 }
@@ -492,7 +492,7 @@ void ConvLayer::setup(Size s){
 	db.clear();
 	for(int o=0;o<d_o;++o){
 		db.push_back(Mat(s,DataType<float>::type,Scalar::all(0.0)));//wrong dimension though!	
-		b.push_back(Mat(s,DataType<float>::type,Scalar::all(0.1)));//wrong dimension though!	
+		b.push_back(Mat(s,DataType<float>::type,Scalar::all(0.5)));//wrong dimension though!	
 		O.push_back(Mat(s,DataType<float>::type));//wrong dimension though!	
 	}
 }
