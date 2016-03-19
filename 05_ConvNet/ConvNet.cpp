@@ -7,8 +7,8 @@
 #include <ctime>
 
 
-#define ETA 0.3
-#define DECAY 0.0001
+#define ETA 0.6
+#define DECAY 0.01
 
 using namespace cv;
 using namespace std;
@@ -413,7 +413,9 @@ std::vector<Mat>& ConvLayer::BP(std::vector<Mat> _G){
 
 	auto fwr = W[0].size().width/2; //kernel size
 	auto fhr = W[0].size().height/2;
-	
+
+	cout << _G[0] << endl;	
+
 	for(int i=0;i<d_i;++i){
 		G[i] = Mat::zeros(I[i].size(),DataType<float>::type);
 	}
@@ -991,15 +993,15 @@ int testMNIST(int argc, char* argv[]){
 	
 	/* ** CONV LAYER TEST ** */
 	net.push_back(new ConvLayer(1,1));
-	net.push_back(new ActivationLayer("ReLU"));
+	net.push_back(new ActivationLayer("relu"));
 	net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
 
-	//net.push_back(new ConvLayer(6,16));
-	//net.push_back(new ActivationLayer("ReLU"));
+	//net.push_back(new ConvLayer(1,1));
+	//net.push_back(new ActivationLayer("relu"));
 	//net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
 	
 	net.push_back(new FlattenLayer(1));
-	net.push_back(new DenseLayer(1,84));
+	net.push_back(new DenseLayer(1,10));
 	net.push_back(new ActivationLayer("sigmoid"));
 	net.push_back(new DenseLayer(1,10));
 	net.push_back(new ActivationLayer("sigmoid"));
@@ -1030,7 +1032,8 @@ int testMNIST(int argc, char* argv[]){
 		X[0] = d;
 		Y[0] = l;
 		auto Yp = net.FF(X);
-		//cout << net.FF(X)[0].t() << endl;
+		//cout << "YP: " << Yp[0].t() << endl;
+		//cout << "YL " << Y[0].t() << endl;
 		net.BP(Yp,Y);
 	}
 
