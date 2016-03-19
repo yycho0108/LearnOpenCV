@@ -189,8 +189,8 @@ std::vector<Mat>& DenseLayer::BP(std::vector<Mat> _G){
 }
 void DenseLayer::update(){
 	for(int i=0;i<d;++i){
-		W[i] += 0.6 * dW[i];
-		b[i] += 0.6 * db[i];
+		W[i] += 0.3 * dW[i];
+		b[i] += 0.3 * db[i];
 	}	
 }
 Size DenseLayer::outputSize(){
@@ -463,8 +463,8 @@ std::vector<Mat>& ConvLayer::BP(std::vector<Mat> _G){
 }
 void ConvLayer::update(){
 	for(int o=0;o<d_o;++o){
-		W[o] += 0.6 * dW[o];
-		b[o] += 0.6 * db[o];
+		W[o] += 0.3 * dW[o];
+		b[o] += 0.3 * db[o];
 	}
 }
 

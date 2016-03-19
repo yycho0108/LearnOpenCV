@@ -1,0 +1,643 @@
+diff --git a/05_ConvNet/ConvNet.cpp b/05_ConvNet/ConvNet.cpp
+index 83721ef..de70ba5 100644
+--- a/05_ConvNet/ConvNet.cpp
++++ b/05_ConvNet/ConvNet.cpp
+@@ -4,7 +4,6 @@
+ #include <functional>
+ #include <iostream>
+ #include <fstream>
+-
+ #include <ctime>
+ 
+ using namespace cv;
+@@ -12,6 +11,8 @@ using namespace std;
+ 
+ /* ** UTILITY ** */
+ 
++float val=0; //useful for overseeing Nans
++
+ 
+ class ForEach : public ParallelLoopBody{
+ 	private:
+@@ -19,18 +20,31 @@ class ForEach : public ParallelLoopBody{
+ 		function<float(float)> f;
+ 	public:
+ 		ForEach(uchar* ptr, function<float(float)> f):p((float*)ptr),f(f){}
++		ForEach(uchar* ptr, float (*f)(float)):p((float*)ptr),f(f){}
+ 		virtual void operator()(const Range& r) const{
+ 			for(int i= r.start; i != r.end; ++i){ //"register int"?
+ 				//std::cout << "HA!" << std::endl;
+ 				p[i] = f(p[i]);
+-				if(isnan(p[i]))
+-					p[i] = 0;
+ 			}
+ 		}
+ };
+ 
++bool isnan(Mat& m){
++	for(auto i = m.begin<float>(); i != m.end<float>(); ++i){
++		if(isnan(*i) || isinf(*i)){
++			return true;
++		}
++	}
++	return false;
++}
++
+ float sigmoid(float x){
+-	return 1.0/(1.0 + exp(-x));
++	if(isnan(x))
++		throw "SISNAN!!!!!!!";
++	val = 1.0/(1.0 + exp(-x));
++	//cout << val;
++
++	return val ;
+ }
+ 
+ float sigmoidPrime(float x){
+@@ -38,27 +52,49 @@ float sigmoidPrime(float x){
+ 	return x * (1-x);
+ }
+ 
+-void sigmoid(Mat& src, Mat& dst){
+-	if(&dst != &src){
+-		src.copyTo(dst);
+-	}
+-	parallel_for_(Range(0,dst.rows*dst.cols),ForEach(dst.data,[](float a){return sigmoid(a);}));
+-
++float softplus(float x){
++	val = log(1+exp(x));
++	//cout << val << endl;
++	return val;
++}
++float softplusPrime(float x){
++	return sigmoid(x); 
++}
++float ReLU(float x){
++	return 0>x?x:0;
++}
++float ReLUPrime(float x){
++	return 0>x?1:0;
+ }
+ 
+-void sigmoidPrime(Mat& src, Mat& dst){
++void activate(Mat& src, Mat& dst, float (*f)(float)){
+ 	if(&dst != &src){
+ 		src.copyTo(dst);
+ 	}
+-	parallel_for_(Range(0,dst.rows*dst.cols),ForEach(dst.data,[](float a){return sigmoidPrime(a);}));
++	for(auto i = dst.begin<float>();i != dst.end<float>(); ++i){
++		auto& e = *i;
++		e = f(e);
++	}
++	//parallel_for_(Range(0,dst.rows*dst.cols),ForEach(dst.data,f));
++
++	//if(isnan(dst))
++	//		throw "DISNAN";
+ }
+ 
++
++
+ void softMax(Mat& src, Mat& dst){
+ 	if(&dst != &src){
+ 		src.copyTo(dst);
+ 	}
+-	exp(src,dst);
+-	auto s = cv::sum(dst);
++
++	double m = 0;
++	cv::minMaxIdx(src,nullptr,&m,nullptr,nullptr);
++	exp(src-m,dst); //subtract by maximum to prevent overflow
++
++	auto s = cv::sum(dst)[0];
++	//cout << "DST = " << dst << endl;
++	//cout << "S = " << s << endl;
+ 	cv::divide(dst,s,dst);
+ }
+ 
+@@ -147,6 +183,7 @@ std::vector<Mat>& DenseLayer::BP(std::vector<Mat> _G){
+ 		G[i] = W[i].t() * _G[i];
+ 		dW[i] = _G[i]*I[i].t(); //bit iffy in here, but I guess... since no sigmoid.
+ 		db[i] = _G[i];
++		dW[i] -= 0.01 * W[i]; //weight decay
+ 	}
+ 	return G;
+ }
+@@ -214,12 +251,13 @@ class ActivationLayer : public Layer{
+ private:
+ 	int d;
+ 	Size s;
++	float (*f)(float);
++	float (*f_d)(float);
+ 	std::vector<Mat> I;
+ 	std::vector<Mat> O;
+ 	std::vector<Mat> G; //maybe not necessary? idk...
+ public:
+-	ActivationLayer();
+-
++	ActivationLayer(std::string _f);
+ 	virtual std::vector<Mat>& FF(std::vector<Mat> I);
+ 	virtual std::vector<Mat>& BP(std::vector<Mat> G);
+ 	virtual void setup(Size s);
+@@ -227,8 +265,23 @@ public:
+ 	//no need to update since to trainable parameter
+ };
+ 
+-ActivationLayer::ActivationLayer(){
+-	d=0;
++ActivationLayer::ActivationLayer(std::string _f){
++	for(auto& c : _f){
++		c = std::tolower(c);
++	}
++
++	if(_f == "sigmoid"){
++		f = sigmoid;
++		f_d = sigmoidPrime;
++	}else if (_f == "softplus"){
++		f = softplus;
++		f_d = softplusPrime;
++	}else if (_f == "relu"){
++		f = ReLU;
++		f_d = ReLUPrime;
++	}else{
++		throw "WRONG ACTIVATION FUNCTION!!";
++	}
+ }
+ 
+ std::vector<Mat>& ActivationLayer::FF(std::vector<Mat> _I){
+@@ -238,14 +291,14 @@ std::vector<Mat>& ActivationLayer::FF(std::vector<Mat> _I){
+ 	//assert same size
+ 	I.swap(_I);
+ 	for(int i=0;i<d;++i){
+-		sigmoid(I[i],O[i]);
++		activate(I[i],O[i],f);
+ 	}
+ 	return O;
+ }
+ std::vector<Mat>& ActivationLayer::BP(std::vector<Mat> _G){
+ 	Mat tmp;
+ 	for(int i=0;i<d;++i){
+-		sigmoidPrime(I[i],tmp);
++		activate(I[i],tmp,f_d);
+ 		G[i] = _G[i].mul(tmp);
+ 	}
+ 	return G;
+@@ -290,12 +343,12 @@ ConvLayer::ConvLayer(int d_i, int d_o)
+ 	// Size Before SubSampling
+ 	// d_i = depth of input layers
+ 	// d_o = depth of output layers
+-	connection = new bool*[d_i];
++	connection = new bool*[d_o];
+ 	//often o>i
+-	for(int i=0;i<d_i;++i){
+-		connection[i] = new bool[d_o];
+-		for(int o=0;o<d_o;++o){
+-			connection[i][o] = ((o%3) != (i%3));
++	for(int o=0;o<d_o;++o){
++		connection[o] = new bool[d_i];
++		for(int i=0;i<d_i;++i){
++			connection[o][i] = true;//((o%3) != (i%3));
+ 			/*if(o%3 != i%3){ // ~2/3 connection
+ 				connection[i][o] = true;
+ 			}*/
+@@ -318,25 +371,23 @@ ConvLayer::~ConvLayer(){
+ std::vector<Mat>& ConvLayer::FF(std::vector<Mat> _I){
+ 	I.swap(_I);
+ 	G = std::vector<Mat>(I.size());
++	//cout << "W[0] : " << endl << W[0] << endl;
+ 
+-	for(int i=0;i<d_i;++i){
+-		for(int o=0;o<d_o;++o){
+-			if(connection[i][o]){
++	for(int o=0;o<d_o;++o){
++		for(int i=0;i<d_i;++i){
++			if(connection[o][i]){
+ 				//cout << i << ',' <<  o << endl;
+-				correlate(I[i],O[o],W[o],true); //true convolution
++				Mat tmp;
++				correlate(I[i],tmp,W[o],true); //true convolution
++				O[o] += tmp;
+ 				//cv::filter2D(I[i],O[o],I[i].depth(),W[o]);//change depth later
+ 				//and maybe even replace this function with something less rigid.
+ 			}
+ 		}
+-	}
+-	for(int o=0;o<d_o;++o){
+-		//O[o] /= 3.0;
+ 		O[o] += b[o];
+-		//sigmoid(O[o],O[o]); //in-place sigmoid
+-		//subsample
+-		//auto w = O[o].size().width/2;
+-		//auto h = O[o].size().height/2;
+-		//O[o] = ave_pool(O[o],cv::Size(w,h));
++		if(isnan(O[o])){
++			throw "OISNAN";
++		}
+ 	}
+ 	return O;
+ }
+@@ -372,16 +423,18 @@ std::vector<Mat>& ConvLayer::BP(std::vector<Mat> _G){
+ 
+ 		//Mat K;
+ 		//flip(W[o],K,-1);
+-
+ 		for(int i=0;i<d_i;++i){ //for each input channel
+ 			
+-			G[i].setTo(Scalar(0)); //set all elements to zero
++			if(connection[o][i]){ //if the channels are related.. 
+ 
+-			if(connection[i][o]){ //if the channels are related.. 
++				Mat tmp;
++
++				correlate(_G[o],tmp,W[o],false); //correlation (flip kernel)
++				G[i] += tmp;
++
++				//correlate(_G[o],tmp,I[i],false); //correlation
++				//dW[o] += tmp;
+ 
+-				correlate(_G[o],G[i],W[o],false); //correlation (flip kernel)
+-				//correlate(_G[o],dW[o],I[i],false);
+-				
+ 				for(int y=0; y<ih;++y){
+ 					for(int x=0;x<iw;++x){
+ 
+@@ -393,14 +446,16 @@ std::vector<Mat>& ConvLayer::BP(std::vector<Mat> _G){
+ 						//G[i](cv::Rect(xmin,ymin,xmax-xmin,ymax-ymin)) += 
+ 						//	K(cv::Rect(xmin-x+fwr,ymin-y+fhr,xmax-xmin,ymax-ymin))
+ 						//   	* _G[o].at<float>(y,x);
+-						dW[o](cv::Rect(xmin-x+fwr,ymin-y+fhr,xmax-xmin,ymax-ymin)) += I[i](cv::Rect(xmin,ymin,xmax-xmin,ymax-ymin)) * _G[o].at<float>(y,x);
++						val = _G[o].at<float>(y,x);
++						dW[o](cv::Rect(xmin-x+fwr,ymin-y+fhr,xmax-xmin,ymax-ymin)) += I[i](cv::Rect(xmin,ymin,xmax-xmin,ymax-ymin)) * val;
+ 						
++						//db[o] += I[i] * _G[o].at<float>(y,x);
+ 						//may not be right index
+ 					}
+ 				}
+ 			}
+ 		}
+-
++		dW[o] -= W[o]*0.01;
+ 		db[o] += _G[o];
+ 	}
+ 
+@@ -471,8 +526,8 @@ std::vector<Mat>& PoolLayer::FF(std::vector<Mat> _I){
+ 	auto it_h = (ih - ph + sh-1) / sh;
+ 
+ 
+-	double maxVal;
+-	int maxIdx[2];
++	double maxVal=0;
++	int maxIdx[2]={0,0};
+ 
+ 	for(size_t i=0;i<I.size();++i){
+ 		S[i].resize(it_h);
+@@ -480,17 +535,26 @@ std::vector<Mat>& PoolLayer::FF(std::vector<Mat> _I){
+ 		for(int _y=0;_y<it_h;++_y){
+ 			S[i][_y].resize(it_w);
+ 			for(int _x=0;_x<it_w;++_x){
+-
+ 				auto y = _y*sh;
+ 				auto x = _x*sw;
+ 
+-				if(y+ph >= ih || x+pw >= iw){
+-					auto _ph = min(ph,ih-y);
+-					auto _pw = min(pw,iw-x);
+-					cv::minMaxIdx(I[i](Rect(x,y,_pw,_ph)),nullptr,&maxVal,nullptr,maxIdx);
+-				}else{
+-					cv::minMaxIdx(I[i](Rect(x,y,pw,ph)),nullptr,&maxVal,nullptr,maxIdx);
+-				}
++				auto _ph = min(ph,ih-y);
++				auto _pw = min(pw,iw-x);
++				/*maxVal=0;
++				maxIdx[0]=maxIdx[1]=0;
++				
++				for(int yi=0;yi<_ph;++yi){
++					for(int xi=0;xi<_pw;++xi){
++						val = I[i].at<float>(y+yi,x+xi);
++						if(val > maxVal){
++							maxVal = val;
++							maxIdx[1] = yi;
++							maxIdx[0] = xi;
++						}
++
++					}
++				}*/
++				cv::minMaxIdx(I[i](Rect(x,y,_pw,_ph)),nullptr,&maxVal,nullptr,maxIdx);
+ 				S[i][_y][_x] = Point(maxIdx[1],maxIdx[0]);
+ 				O[i].at<float>(_y,_x) = maxVal;
+ 
+@@ -509,16 +573,18 @@ std::vector<Mat>& PoolLayer::BP(std::vector<Mat> _G){
+ 
+ 	auto sw = s_s.width;
+ 	auto sh = s_s.height;
+-
++	//cout << "_G[0] : " << endl << _G[0] << endl;
+ 	for(size_t i=0;i<_G.size();++i){
+ 		G[i] = Mat::zeros(I[i].size(),DataType<float>::type);
+ 		for(int _y=0;_y<h;++_y){
+ 			for(int _x=0;_x<w;++_x){
+ 				auto& loc = S[i][_y][_x];
+-				G[i].at<float>(_y*sh +loc.y, _x*sw + loc.x) = _G[i].at<float>(_y,_x);
++				val = _G[i].at<float>(_y,_x);
++				G[i].at<float>(_y*sh +loc.y, _x*sw + loc.x) = val;
+ 			}
+ 		}
+ 	}
++	//cout << "G[0] : " << endl << G[0] << endl;
+ 	return G;
+ }
+ 
+@@ -564,10 +630,9 @@ std::vector<Mat>& SoftMaxLayer::FF(std::vector<Mat> _I){
+ 	//cout << "O" << endl << O[0] << endl;
+ 	return O;
+ }
+-std::vector<Mat>& SoftMaxLayer::BP(std::vector<Mat> Y){
+-	for(int i=0;i<d;++i){
+-		cv::subtract(Y[i],O[i],G[i]); //G[i] = Y[i] - O[i];
+-	}
++std::vector<Mat>& SoftMaxLayer::BP(std::vector<Mat> _G){
++	throw "SoftMAX : BP Not Implemented";
++	G.swap(_G);
+ 	return G;
+ }
+ double SoftMaxLayer::cost(){
+@@ -601,22 +666,26 @@ public:
+ 
+ 	std::vector<Mat> FF(std::vector<Mat> _X){
+ 		auto& X = _X;
+-		//cout << "X : " << endl << X[0] << endl;
+ 		for(auto& l : L){
++			//cout << "X : " << endl << X[0] << endl;
+ 			X = l->FF(X);
++			if(isnan(X[0]))
++				throw ("XISNAN!");
+ 		}
+ 		return X;
+ 	}
+ 
+-	void BP(std::vector<Mat> X, std::vector<Mat> Y){
++	void BP(std::vector<Mat> Yp, std::vector<Mat> Y){
+ 		//sample ..
+-		FF(X);
+-		auto& G = Y;
+-
+-		for(auto i = L.rbegin(); i != L.rend(); ++i){
++		std::vector<Mat> G(Yp.size());
++		for(size_t i=0;i<G.size();++i){
++			cv::subtract(Y[i],Yp[i],G[i]); //G[i] = O[i]Y[i] - O[i];
++		}
++		//cout << "Y" << Y[0] << endl;
++		for(auto i = L.rbegin()+1; i != L.rend(); ++i){
++			//cout << "G" << " : "<< endl << G[0] << endl;
+ 			auto& l = (*i);
+ 			G = l->BP(G);
+-			//cout << "G" << " : "<< endl << G[0].at<float>(0,0) << endl;
+ 		}
+ 
+ 		for(auto& l : L){
+@@ -634,6 +703,9 @@ public:
+ 	void push_back(Layer* l){
+ 		L.push_back(l);
+ 	}
++	std::vector<Layer*> getL(){
++		return L;
++	}
+ 
+ };
+ 
+@@ -645,31 +717,31 @@ int testConvLayer(int argc, char* argv[]){
+ 	}
+ 	auto img = imread(argv[1],IMREAD_ANYDEPTH);
+ 	
++	cv::theRNG().state = time(0);
+ 	namedWindow("M",WINDOW_AUTOSIZE);
+ 	imshow("M",img);
+-	img.convertTo(img,CV_32F);
++	img.convertTo(img,CV_32F,1/256.0);
++	
++	auto cl = ConvLayer(1,4);
++	//auto al = ActivationLayer("sigmoid");
+ 	
+-	auto cl = ConvLayer(1,3);
+-	auto al = ActivationLayer();
++	cl.setup(img.size());
++	//al.setup(cl.outputSize());
++
+ 
+ 	std::vector<Mat> I;
+ 	I.push_back(img);
+ 	
+-	namedWindow("K1",WINDOW_AUTOSIZE);
+-	namedWindow("K2",WINDOW_AUTOSIZE);
+-	namedWindow("K3",WINDOW_AUTOSIZE);
+ 
+ 	auto m = cl.FF(I);
+ 	cl.BP(m);
+-	m = al.FF(m);
+-
+-	m[0].convertTo(m[0],CV_8U);
+-	m[1].convertTo(m[1],CV_8U);
+-	m[2].convertTo(m[2],CV_8U);
++	//m = al.FF(m);
++	for(int i=0;i<4;++i){
++		namedWindow(std::to_string(i),WINDOW_AUTOSIZE);
++		m[i].convertTo(m[i],CV_8U,256.0);
++		imshow(std::to_string(i),m[i]);
++	}
+ 
+-	imshow("K1", m[0]);
+-	imshow("K2", m[1]);
+-	imshow("K3", m[2]);
+ 	waitKey();
+ 	return 0;
+ }
+@@ -746,14 +818,14 @@ int testLayerStack(int argc, char* argv[]){
+ 	I.push_back(img);
+ 
+ 	auto cl_1 = ConvLayer(1,6);
+-	auto al_1 = ActivationLayer();
++	auto al_1 = ActivationLayer("ReLU");
+ 	auto pl_1 = PoolLayer(Size(5,5),Size(3,3));
+ 	auto cl_2 = ConvLayer(6,16);
+-	auto al_2 = ActivationLayer();
++	auto al_2 = ActivationLayer("ReLU");
+ 	auto pl_2 = PoolLayer(Size(5,5),Size(3,3));
+ 	auto fl = FlattenLayer(16); // arbitrary... frankly don't know
+ 	auto dl = DenseLayer(1,10);
+-	auto al_3 = ActivationLayer();
++	auto al_3 = ActivationLayer("sigmoid");
+ 
+ 	auto m = cl_1.FF(I);
+ 	m = al_1.FF(m);
+@@ -790,13 +862,15 @@ int testConvNet(int argc, char* argv[]){
+ 		cout << "SPECIFY CORRECT ARGS" << endl;
+ 		return -1;
+ 	}
+-	auto img = imread(argv[1],IMREAD_ANYDEPTH);
++	/*auto img = imread(argv[1],IMREAD_ANYDEPTH);
+ 	namedWindow("M",WINDOW_AUTOSIZE);
+-	imshow("M",img);
++	imshow("M",img);*/
++
++	Mat img = (Mat_<float>(3,3) << 1,2,3,4,5,6,7,8,9);
+ 	img.convertTo(img,CV_32F,1/256.0);
+ 
+-	Mat cla = (Mat_<float>(20,1) << 0,1,2,3,4,5,6,7,8,9,
+-			10,11,12,13,14,15,16,17,18,19)/210.0;
++	Mat cla = Mat::zeros(10,1,DataType<float>::type);
++	cla.at<float>(4,0) = 1.0;
+ 
+ 	std::vector<Mat> X;
+ 	X.push_back(img);
+@@ -804,31 +878,33 @@ int testConvNet(int argc, char* argv[]){
+ 	Y.push_back(cla);
+ 	
+ 	ConvNet net;
+-	net.push_back(new ConvLayer(1,6));
+-	net.push_back(new ActivationLayer());
+-	net.push_back(new PoolLayer(Size(5,5),Size(3,3)));
+-	net.push_back(new ConvLayer(6,16));
+-	net.push_back(new ActivationLayer());
+-	net.push_back(new PoolLayer(Size(5,5),Size(3,3)));
+-	net.push_back(new FlattenLayer(16));
+-	net.push_back(new DenseLayer(1,20));
+-	net.push_back(new ActivationLayer());
++	net.push_back(new ConvLayer(1,3));
++	net.push_back(new ActivationLayer("softplus"));
++	//net.push_back(new PoolLayer(Size(5,5),Size(3,3)));
++	//net.push_back(new ConvLayer(6,16));
++	//net.push_back(new ActivationLayer("ReLU"));
++	//net.push_back(new PoolLayer(Size(5,5),Size(3,3)));
++	net.push_back(new FlattenLayer(3));
++	net.push_back(new DenseLayer(1,10));
++	//net.push_back(new ActivationLayer("sigmoid"));
+ 	net.push_back(new SoftMaxLayer());
+ 	net.setup(img.size());
+ 
+ 	auto m = net.FF(X);
+ 	
+-	//std::cout << "M" << endl << m[0] << endl;
++	std::cout << "M" << endl << m[0] << endl;
+ 
+-	for(int i=0;i<1;++i){
+-		cout << i << endl;
+-		net.BP(X,Y);
++	for(int i=0;i<100;++i){
++		auto Yp = net.FF(X);
++		cout << Yp[0].t() << endl;
++		net.BP(Yp,Y);
+ 	}
+ 
+-	//std::cout << "_M_" << endl << m[0] << endl;
++	std::cout << "_M_" << endl << m[0] << endl;
+ 	m = net.FF(X);
+-	//std::cout << "M" << endl << m[0] << endl;
++	std::cout << "M" << endl << m[0] << endl;
+ 	std::cout << "TARGET " << endl << Y[0] << endl;
++
+ 	//auto m = net.FF(I);
+ 	//std::cout << "M" << endl << m[0] << endl;
+ 
+@@ -900,28 +976,40 @@ int testMNIST(int argc, char* argv[]){
+ 	}
+ 	ConvNet net;
+ 
++	/* ** DENSE LAYER TEST ** */
+ 	net.push_back(new FlattenLayer(1));
+ 	net.push_back(new DenseLayer(1,75));
+-	net.push_back(new ActivationLayer());
++	net.push_back(new ActivationLayer("sigmoid"));
+ 	net.push_back(new DenseLayer(1,10));
+-	net.push_back(new ActivationLayer());
++	net.push_back(new ActivationLayer("sigmoid"));
+ 	net.push_back(new SoftMaxLayer());
+ 	
+-	//net.push_back(new ConvLayer(1,6));
+-	//net.push_back(new ActivationLayer());
++	/* ** CONV LAYER TEST ** */
++	//net.push_back(new ConvLayer(1,1));
++	//net.push_back(new ActivationLayer("softplus"));
+ 	//net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
+ 
+ 	//net.push_back(new ConvLayer(6,16));
+-	//net.push_back(new ActivationLayer());
++	//net.push_back(new ActivationLayer("ReLU"));
+ 	//net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
+-
+-	//net.push_back(new FlattenLayer(6));
+-	//net.push_back(new DenseLayer(1,84));
+-	//net.push_back(new ActivationLayer());
++	
++	/*net.push_back(new FlattenLayer(1));
++	net.push_back(new DenseLayer(1,84));
++	net.push_back(new ActivationLayer("sigmoid"));
++	net.push_back(new DenseLayer(1,10));
++	net.push_back(new ActivationLayer("sigmoid"));
++*/
++	//net.push_back(new SoftMaxLayer());
++	
++	/* ** POOL LAYER TEST ** */
++	//net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
++	//net.push_back(new FlattenLayer(1));
++	//net.push_back(new DenseLayer(1,75));
++	//net.push_back(new ActivationLayer("sigmoid"));
+ 	//net.push_back(new DenseLayer(1,10));
+-	//net.push_back(new ActivationLayer());
+-
++	//net.push_back(new ActivationLayer("sigmoid"));
+ 	//net.push_back(new SoftMaxLayer());
++
+ 	net.setup(Size(28,28));
+ 	
+ 	Parser trainer("../data/trainData","../data/trainLabel");
+@@ -930,13 +1018,16 @@ int testMNIST(int argc, char* argv[]){
+ 	int i=0;
+ 
+ 	while (trainer.read(d,l) && i < lim){
++		//cout << d << endl;
+ 		++i;
+ 		if(!(i%100)){
+ 			cout << i << endl;
+ 		}
+ 		X[0] = d;
+ 		Y[0] = l;
+-		net.BP(X,Y);
++		auto Yp = net.FF(X);
++		//cout << net.FF(X)[0].t() << endl;
++		net.BP(Yp,Y);
+ 	}
+ 
+ 	Parser tester("../data/testData","../data/testLabel");
+@@ -944,10 +1035,23 @@ int testMNIST(int argc, char* argv[]){
+ 	int cor=0;
+ 	int inc = 0;
+ 
++/* VISUALIZING THE LEARNED KERNELS */	
++	/*namedWindow("M",WINDOW_AUTOSIZE);
++	trainer.read(d,l);
++	X[0] = d;
++	imshow("M",X[0]);
++	const auto& L = net.getL();
++	auto& K = L[0]->FF(X);
++	namedWindow("K",WINDOW_AUTOSIZE);
++	imshow("K",K[0]);
++	waitKey();*/
++/* END */
++
++
+ 	while(tester.read(d,l)){
+ 		X[0] = d;
+ 		Y[0] = l;
+-		//cout << "OUTPUT : " << endl << net.FF(X)[0].t() << endl;
++		cout << "OUTPUT : " << endl << net.FF(X)[0].t() << endl;
+ 		//cout << "TARGET : " << endl <<  Y[0].t() << endl;
+ 		auto y = argmax(net.FF(X)[0]);
+ 		auto t = argmax(Y[0]);
+@@ -965,4 +1069,5 @@ int main(int argc, char* argv[]){
+ 	//return testPoolLayer(argc,argv);
+ 	//return testConvNet(argc,argv);
+ 	return testMNIST(argc,argv);
++	//return testConvLayer(argc,argv);
+ }
+diff --git a/05_ConvNet/build/ConvNet b/05_ConvNet/build/ConvNet
+index b2fe567..f0ea9ab 100755
+Binary files a/05_ConvNet/build/ConvNet and b/05_ConvNet/build/ConvNet differ
