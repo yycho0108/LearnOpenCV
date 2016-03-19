@@ -90,7 +90,7 @@ void softMax(Mat& src, Mat& dst){
 
 	double m = 0;
 	cv::minMaxIdx(src,nullptr,&m,nullptr,nullptr);
-	exp(src-m,dst); //subtract by minimum to prevent overflow
+	exp(src-m,dst); //subtract by maximum to prevent overflow
 
 	auto s = cv::sum(dst)[0];
 	//cout << "DST = " << dst << endl;
@@ -631,9 +631,8 @@ std::vector<Mat>& SoftMaxLayer::FF(std::vector<Mat> _I){
 	return O;
 }
 std::vector<Mat>& SoftMaxLayer::BP(std::vector<Mat> _G){
-	for(int i=0;i<d;++i){
-		cv::subtract(_G[i],O[i],G[i]); //G[i] = Y[i] - O[i];
-	}
+	throw "SoftMAX : BP Not Implemented";
+	G.swap(_G);
 	return G;
 }
 double SoftMaxLayer::cost(){
@@ -676,11 +675,14 @@ public:
 		return X;
 	}
 
-	void BP(std::vector<Mat> Y){
+	void BP(std::vector<Mat> Yp, std::vector<Mat> Y){
 		//sample ..
-		auto& G = Y;
+		std::vector<Mat> G(Yp.size());
+		for(size_t i=0;i<G.size();++i){
+			cv::subtract(Y[i],Yp[i],G[i]); //G[i] = O[i]Y[i] - O[i];
+		}
 		//cout << "Y" << Y[0] << endl;
-		for(auto i = L.rbegin(); i != L.rend(); ++i){
+		for(auto i = L.rbegin()+1; i != L.rend(); ++i){
 			//cout << "G" << " : "<< endl << G[0] << endl;
 			auto& l = (*i);
 			G = l->BP(G);
@@ -893,8 +895,9 @@ int testConvNet(int argc, char* argv[]){
 	std::cout << "M" << endl << m[0] << endl;
 
 	for(int i=0;i<100;++i){
-		cout << net.FF(X)[0].t() << endl;
-		net.BP(Y);
+		auto Yp = net.FF(X);
+		cout << Yp[0].t() << endl;
+		net.BP(Yp,Y);
 	}
 
 	std::cout << "_M_" << endl << m[0] << endl;
@@ -974,29 +977,29 @@ int testMNIST(int argc, char* argv[]){
 	ConvNet net;
 
 	/* ** DENSE LAYER TEST ** */
-	//net.push_back(new FlattenLayer(1));
-	//net.push_back(new DenseLayer(1,75));
-	//net.push_back(new ActivationLayer());
-	//net.push_back(new DenseLayer(1,10));
-	//net.push_back(new ActivationLayer());
-	//net.push_back(new SoftMaxLayer());
+	net.push_back(new FlattenLayer(1));
+	net.push_back(new DenseLayer(1,75));
+	net.push_back(new ActivationLayer("sigmoid"));
+	net.push_back(new DenseLayer(1,10));
+	net.push_back(new ActivationLayer("sigmoid"));
+	net.push_back(new SoftMaxLayer());
 	
 	/* ** CONV LAYER TEST ** */
-	net.push_back(new ConvLayer(1,1));
-	/*net.push_back(new ActivationLayer("ReLU"));
-	net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
+	//net.push_back(new ConvLayer(1,1));
+	//net.push_back(new ActivationLayer("softplus"));
+	//net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
 
-	net.push_back(new ConvLayer(6,16));
-	net.push_back(new ActivationLayer("ReLU"));
-	net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
-	*/
-	net.push_back(new FlattenLayer(1));
+	//net.push_back(new ConvLayer(6,16));
+	//net.push_back(new ActivationLayer("ReLU"));
+	//net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
+	
+	/*net.push_back(new FlattenLayer(1));
 	net.push_back(new DenseLayer(1,84));
 	net.push_back(new ActivationLayer("sigmoid"));
 	net.push_back(new DenseLayer(1,10));
-	//net.push_back(new ActivationLayer("sigmoid"));
-
-	net.push_back(new SoftMaxLayer());
+	net.push_back(new ActivationLayer("sigmoid"));
+*/
+	//net.push_back(new SoftMaxLayer());
 	
 	/* ** POOL LAYER TEST ** */
 	//net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
@@ -1022,9 +1025,9 @@ int testMNIST(int argc, char* argv[]){
 		}
 		X[0] = d;
 		Y[0] = l;
-		net.FF(X);
+		auto Yp = net.FF(X);
 		//cout << net.FF(X)[0].t() << endl;
-		net.BP(Y);
+		net.BP(Yp,Y);
 	}
 
 	Parser tester("../data/testData","../data/testLabel");
@@ -1064,7 +1067,7 @@ int testMNIST(int argc, char* argv[]){
 
 int main(int argc, char* argv[]){
 	//return testPoolLayer(argc,argv);
-	return testConvNet(argc,argv);
-	//return testMNIST(argc,argv);
+	//return testConvNet(argc,argv);
+	return testMNIST(argc,argv);
 	//return testConvLayer(argc,argv);
 }
