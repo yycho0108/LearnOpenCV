@@ -39,6 +39,8 @@ bool isnan(Mat& m){
 }
 
 float sigmoid(float x){
+	if(isnan(x))
+		throw "SISNAN!!!!!!!";
 	val = 1.0/(1.0 + exp(-x));
 	//cout << val;
 
@@ -52,9 +54,6 @@ float sigmoidPrime(float x){
 
 float softplus(float x){
 	val = log(1+exp(x));
-	if(isnan(val) || isinf(val)){
-		val = 0;
-	}
 	//cout << val << endl;
 	return val;
 }
@@ -75,9 +74,6 @@ void activate(Mat& src, Mat& dst, float (*f)(float)){
 	for(auto i = dst.begin<float>();i != dst.end<float>(); ++i){
 		auto& e = *i;
 		e = f(e);
-
-		if(isnan(e))
-			throw "EISNAN";
 	}
 	//parallel_for_(Range(0,dst.rows*dst.cols),ForEach(dst.data,f));
 
@@ -99,11 +95,7 @@ void softMax(Mat& src, Mat& dst){
 	auto s = cv::sum(dst)[0];
 	//cout << "DST = " << dst << endl;
 	//cout << "S = " << s << endl;
-
 	cv::divide(dst,s,dst);
-	if(isnan(dst)){
-		throw ("D_ISNAN1!!");
-	}
 }
 
 void correlate(cv::InputArray I, cv::OutputArray O,cv::InputArray W, bool flip=false){
@@ -182,24 +174,16 @@ void DenseLayer::setup(Size s){
 std::vector<Mat>& DenseLayer::FF(std::vector<Mat> _I){
 	I.swap(_I);
 	for(size_t i=0;i<I.size();++i){
-		if(isnan(b[i])){
-			throw("IINANANAN!!");
-		}
 		O[i] = W[i]*I[i]+b[i];
-		if(isnan(O[i])){
-			throw("ONANANAN!!");
-		}
 	}
 	return O;
 }
 std::vector<Mat>& DenseLayer::BP(std::vector<Mat> _G){
 	for(int i=0;i<d;++i){
 		G[i] = W[i].t() * _G[i];
-		if(isnan(G[i])){
-			throw("NANANANA!!");
-		}
 		dW[i] = _G[i]*I[i].t(); //bit iffy in here, but I guess... since no sigmoid.
 		db[i] = _G[i];
+		dW[i] -= 0.01 * W[i]; //weight decay
 	}
 	return G;
 }
@@ -308,9 +292,6 @@ std::vector<Mat>& ActivationLayer::FF(std::vector<Mat> _I){
 	I.swap(_I);
 	for(int i=0;i<d;++i){
 		activate(I[i],O[i],f);
-		if(isnan(O[i])){
-			throw("OISNAN!!");
-		}
 	}
 	return O;
 }
@@ -404,6 +385,9 @@ std::vector<Mat>& ConvLayer::FF(std::vector<Mat> _I){
 			}
 		}
 		O[o] += b[o];
+		if(isnan(O[o])){
+			throw "OISNAN";
+		}
 	}
 	return O;
 }
@@ -444,11 +428,13 @@ std::vector<Mat>& ConvLayer::BP(std::vector<Mat> _G){
 			if(connection[o][i]){ //if the channels are related.. 
 
 				Mat tmp;
+
 				correlate(_G[o],tmp,W[o],false); //correlation (flip kernel)
 				G[i] += tmp;
 
-				//correlate(_G[o],dW[o],I[i],false);
-				
+				//correlate(_G[o],tmp,I[i],false); //correlation
+				//dW[o] += tmp;
+
 				for(int y=0; y<ih;++y){
 					for(int x=0;x<iw;++x){
 
@@ -462,13 +448,14 @@ std::vector<Mat>& ConvLayer::BP(std::vector<Mat> _G){
 						//   	* _G[o].at<float>(y,x);
 						val = _G[o].at<float>(y,x);
 						dW[o](cv::Rect(xmin-x+fwr,ymin-y+fhr,xmax-xmin,ymax-ymin)) += I[i](cv::Rect(xmin,ymin,xmax-xmin,ymax-ymin)) * val;
-						//db[o] += I[i] * _G[o].at<float>(y,x);
 						
+						//db[o] += I[i] * _G[o].at<float>(y,x);
 						//may not be right index
 					}
 				}
 			}
 		}
+		dW[o] -= W[o]*0.01;
 		db[o] += _G[o];
 	}
 
@@ -476,8 +463,8 @@ std::vector<Mat>& ConvLayer::BP(std::vector<Mat> _G){
 }
 void ConvLayer::update(){
 	for(int o=0;o<d_o;++o){
-		W[o] += 0.3 * dW[o];
-		b[o] += 0.3 * db[o];
+		W[o] += 0.6 * dW[o];
+		b[o] += 0.6 * db[o];
 	}
 }
 
@@ -643,9 +630,9 @@ std::vector<Mat>& SoftMaxLayer::FF(std::vector<Mat> _I){
 	//cout << "O" << endl << O[0] << endl;
 	return O;
 }
-std::vector<Mat>& SoftMaxLayer::BP(std::vector<Mat> Y){
+std::vector<Mat>& SoftMaxLayer::BP(std::vector<Mat> _G){
 	for(int i=0;i<d;++i){
-		cv::subtract(Y[i],O[i],G[i]); //G[i] = Y[i] - O[i];
+		cv::subtract(_G[i],O[i],G[i]); //G[i] = Y[i] - O[i];
 	}
 	return G;
 }
@@ -683,9 +670,8 @@ public:
 		for(auto& l : L){
 			//cout << "X : " << endl << X[0] << endl;
 			X = l->FF(X);
-			if(isnan(X[0])){
-				throw "NANANAN!!";
-			}
+			if(isnan(X[0]))
+				throw ("XISNAN!");
 		}
 		return X;
 	}
@@ -694,14 +680,10 @@ public:
 		//sample ..
 		auto& G = Y;
 		//cout << "Y" << Y[0] << endl;
-
 		for(auto i = L.rbegin(); i != L.rend(); ++i){
+			//cout << "G" << " : "<< endl << G[0] << endl;
 			auto& l = (*i);
 			G = l->BP(G);
-			if(isnan(G[0])){
-				throw "GNANANAN!!";
-			}
-			//cout << "G" << " : "<< endl << G[0] << endl;
 		}
 
 		for(auto& l : L){
@@ -878,13 +860,15 @@ int testConvNet(int argc, char* argv[]){
 		cout << "SPECIFY CORRECT ARGS" << endl;
 		return -1;
 	}
-	auto img = imread(argv[1],IMREAD_ANYDEPTH);
+	/*auto img = imread(argv[1],IMREAD_ANYDEPTH);
 	namedWindow("M",WINDOW_AUTOSIZE);
-	imshow("M",img);
+	imshow("M",img);*/
+
+	Mat img = (Mat_<float>(3,3) << 1,2,3,4,5,6,7,8,9);
 	img.convertTo(img,CV_32F,1/256.0);
 
-	Mat cla = (Mat_<float>(20,1) << 0,1,2,3,4,5,6,7,8,9,
-			10,11,12,13,14,15,16,17,18,19)/210.0;
+	Mat cla = Mat::zeros(10,1,DataType<float>::type);
+	cla.at<float>(4,0) = 1.0;
 
 	std::vector<Mat> X;
 	X.push_back(img);
@@ -892,32 +876,32 @@ int testConvNet(int argc, char* argv[]){
 	Y.push_back(cla);
 	
 	ConvNet net;
-	net.push_back(new ConvLayer(1,6));
-	net.push_back(new ActivationLayer("ReLU"));
-	net.push_back(new PoolLayer(Size(5,5),Size(3,3)));
-	net.push_back(new ConvLayer(6,16));
-	net.push_back(new ActivationLayer("ReLU"));
-	net.push_back(new PoolLayer(Size(5,5),Size(3,3)));
-	net.push_back(new FlattenLayer(16));
-	net.push_back(new DenseLayer(1,20));
-	net.push_back(new ActivationLayer("sigmoid"));
+	net.push_back(new ConvLayer(1,3));
+	net.push_back(new ActivationLayer("softplus"));
+	//net.push_back(new PoolLayer(Size(5,5),Size(3,3)));
+	//net.push_back(new ConvLayer(6,16));
+	//net.push_back(new ActivationLayer("ReLU"));
+	//net.push_back(new PoolLayer(Size(5,5),Size(3,3)));
+	net.push_back(new FlattenLayer(3));
+	net.push_back(new DenseLayer(1,10));
+	//net.push_back(new ActivationLayer("sigmoid"));
 	net.push_back(new SoftMaxLayer());
 	net.setup(img.size());
 
 	auto m = net.FF(X);
 	
-	//std::cout << "M" << endl << m[0] << endl;
+	std::cout << "M" << endl << m[0] << endl;
 
-	for(int i=0;i<1;++i){
-		cout << i << endl;
-		net.FF(X);
+	for(int i=0;i<100;++i){
+		cout << net.FF(X)[0].t() << endl;
 		net.BP(Y);
 	}
 
-	//std::cout << "_M_" << endl << m[0] << endl;
+	std::cout << "_M_" << endl << m[0] << endl;
 	m = net.FF(X);
-	//std::cout << "M" << endl << m[0] << endl;
+	std::cout << "M" << endl << m[0] << endl;
 	std::cout << "TARGET " << endl << Y[0] << endl;
+
 	//auto m = net.FF(I);
 	//std::cout << "M" << endl << m[0] << endl;
 
@@ -998,19 +982,19 @@ int testMNIST(int argc, char* argv[]){
 	//net.push_back(new SoftMaxLayer());
 	
 	/* ** CONV LAYER TEST ** */
-	net.push_back(new ConvLayer(1,6));
-	net.push_back(new ActivationLayer("softplus"));
+	net.push_back(new ConvLayer(1,1));
+	/*net.push_back(new ActivationLayer("ReLU"));
 	net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
 
 	net.push_back(new ConvLayer(6,16));
-	net.push_back(new ActivationLayer("softplus"));
+	net.push_back(new ActivationLayer("ReLU"));
 	net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
-
-	net.push_back(new FlattenLayer(16));
+	*/
+	net.push_back(new FlattenLayer(1));
 	net.push_back(new DenseLayer(1,84));
 	net.push_back(new ActivationLayer("sigmoid"));
 	net.push_back(new DenseLayer(1,10));
-	net.push_back(new ActivationLayer("sigmoid"));
+	//net.push_back(new ActivationLayer("sigmoid"));
 
 	net.push_back(new SoftMaxLayer());
 	
@@ -1080,7 +1064,7 @@ int testMNIST(int argc, char* argv[]){
 
 int main(int argc, char* argv[]){
 	//return testPoolLayer(argc,argv);
-	//return testConvNet(argc,argv);
-	return testMNIST(argc,argv);
+	return testConvNet(argc,argv);
+	//return testMNIST(argc,argv);
 	//return testConvLayer(argc,argv);
 }
