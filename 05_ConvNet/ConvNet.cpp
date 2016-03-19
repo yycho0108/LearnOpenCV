@@ -6,6 +6,10 @@
 #include <fstream>
 #include <ctime>
 
+
+#define ETA 0.3
+#define DECAY 0.0001
+
 using namespace cv;
 using namespace std;
 
@@ -39,8 +43,8 @@ bool isnan(Mat& m){
 }
 
 float sigmoid(float x){
-	if(isnan(x))
-		throw "SISNAN!!!!!!!";
+	//if(isnan(x))
+	//	throw "SISNAN!!!!!!!";
 	val = 1.0/(1.0 + exp(-x));
 	//cout << val;
 
@@ -92,9 +96,7 @@ void softMax(Mat& src, Mat& dst){
 	cv::minMaxIdx(src,nullptr,&m,nullptr,nullptr);
 	exp(src-m,dst); //subtract by maximum to prevent overflow
 
-	auto s = cv::sum(dst)[0];
-	//cout << "DST = " << dst << endl;
-	//cout << "S = " << s << endl;
+	auto s = cv::sum(dst);
 	cv::divide(dst,s,dst);
 }
 
@@ -183,14 +185,14 @@ std::vector<Mat>& DenseLayer::BP(std::vector<Mat> _G){
 		G[i] = W[i].t() * _G[i];
 		dW[i] = _G[i]*I[i].t(); //bit iffy in here, but I guess... since no sigmoid.
 		db[i] = _G[i];
-		dW[i] -= 0.01 * W[i]; //weight decay
+		dW[i] -= DECAY * W[i]; //weight decay
 	}
 	return G;
 }
 void DenseLayer::update(){
 	for(int i=0;i<d;++i){
-		W[i] += 0.3 * dW[i];
-		b[i] += 0.3 * db[i];
+		W[i] += ETA * dW[i];
+		b[i] += ETA * db[i];
 	}	
 }
 Size DenseLayer::outputSize(){
@@ -374,6 +376,7 @@ std::vector<Mat>& ConvLayer::FF(std::vector<Mat> _I){
 	//cout << "W[0] : " << endl << W[0] << endl;
 
 	for(int o=0;o<d_o;++o){
+		//cout << "W[o] : " << endl << W[o] << endl;
 		for(int i=0;i<d_i;++i){
 			if(connection[o][i]){
 				//cout << i << ',' <<  o << endl;
@@ -385,9 +388,9 @@ std::vector<Mat>& ConvLayer::FF(std::vector<Mat> _I){
 			}
 		}
 		O[o] += b[o];
-		if(isnan(O[o])){
-			throw "OISNAN";
-		}
+		//if(isnan(O[o])){
+		//	throw "OISNAN";
+		//}
 	}
 	return O;
 }
@@ -455,7 +458,7 @@ std::vector<Mat>& ConvLayer::BP(std::vector<Mat> _G){
 				}
 			}
 		}
-		dW[o] -= W[o]*0.01;
+		dW[o] -= W[o]*DECAY;
 		db[o] += _G[o];
 	}
 
@@ -463,8 +466,8 @@ std::vector<Mat>& ConvLayer::BP(std::vector<Mat> _G){
 }
 void ConvLayer::update(){
 	for(int o=0;o<d_o;++o){
-		W[o] += 0.3 * dW[o];
-		b[o] += 0.3 * db[o];
+		W[o] += ETA * dW[o];
+		b[o] += ETA * db[o];
 	}
 }
 
@@ -669,8 +672,8 @@ public:
 		for(auto& l : L){
 			//cout << "X : " << endl << X[0] << endl;
 			X = l->FF(X);
-			if(isnan(X[0]))
-				throw ("XISNAN!");
+			//if(isnan(X[0]))
+			//	throw ("XISNAN!");
 		}
 		return X;
 	}
@@ -860,6 +863,7 @@ int testLayerStack(int argc, char* argv[]){
 int testConvNet(int argc, char* argv[]){
 	if(argc != 2){
 		cout << "SPECIFY CORRECT ARGS" << endl;
+		cout << argv[0] << endl;
 		return -1;
 	}
 	/*auto img = imread(argv[1],IMREAD_ANYDEPTH);
@@ -977,29 +981,28 @@ int testMNIST(int argc, char* argv[]){
 	ConvNet net;
 
 	/* ** DENSE LAYER TEST ** */
-	net.push_back(new FlattenLayer(1));
-	net.push_back(new DenseLayer(1,75));
-	net.push_back(new ActivationLayer("sigmoid"));
-	net.push_back(new DenseLayer(1,10));
-	net.push_back(new ActivationLayer("sigmoid"));
-	net.push_back(new SoftMaxLayer());
+	//net.push_back(new FlattenLayer(1));
+	//net.push_back(new DenseLayer(1,75));
+	//net.push_back(new ActivationLayer("sigmoid"));
+	//net.push_back(new DenseLayer(1,10));
+	//net.push_back(new ActivationLayer("sigmoid"));
+	//net.push_back(new SoftMaxLayer());
 	
 	/* ** CONV LAYER TEST ** */
-	//net.push_back(new ConvLayer(1,1));
-	//net.push_back(new ActivationLayer("softplus"));
+	net.push_back(new ConvLayer(1,1));
+	//net.push_back(new ActivationLayer("ReLU"));
 	//net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
 
 	//net.push_back(new ConvLayer(6,16));
 	//net.push_back(new ActivationLayer("ReLU"));
 	//net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
 	
-	/*net.push_back(new FlattenLayer(1));
+	net.push_back(new FlattenLayer(1));
 	net.push_back(new DenseLayer(1,84));
 	net.push_back(new ActivationLayer("sigmoid"));
 	net.push_back(new DenseLayer(1,10));
 	net.push_back(new ActivationLayer("sigmoid"));
-*/
-	//net.push_back(new SoftMaxLayer());
+	net.push_back(new SoftMaxLayer());
 	
 	/* ** POOL LAYER TEST ** */
 	//net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
@@ -1046,7 +1049,6 @@ int testMNIST(int argc, char* argv[]){
 	imshow("K",K[0]);
 	waitKey();*/
 /* END */
-
 
 	while(tester.read(d,l)){
 		X[0] = d;
