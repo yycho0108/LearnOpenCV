@@ -372,14 +372,14 @@ std::vector<Mat>& ConvLayer::BP(std::vector<Mat> _G){
 
 		//Mat K;
 		//flip(W[o],K,-1);
-
 		for(int i=0;i<d_i;++i){ //for each input channel
 			
-			G[i].setTo(Scalar(0)); //set all elements to zero
-
 			if(connection[i][o]){ //if the channels are related.. 
 
-				correlate(_G[o],G[i],W[o],false); //correlation (flip kernel)
+				Mat tmp;
+				correlate(_G[o],tmp,W[o],false); //correlation (flip kernel)
+				G[i] += tmp;
+
 				//correlate(_G[o],dW[o],I[i],false);
 				
 				for(int y=0; y<ih;++y){
@@ -509,7 +509,7 @@ std::vector<Mat>& PoolLayer::BP(std::vector<Mat> _G){
 
 	auto sw = s_s.width;
 	auto sh = s_s.height;
-
+	//cout << "_G[0] : " << endl << _G[0] << endl;
 	for(size_t i=0;i<_G.size();++i){
 		G[i] = Mat::zeros(I[i].size(),DataType<float>::type);
 		for(int _y=0;_y<h;++_y){
@@ -519,6 +519,7 @@ std::vector<Mat>& PoolLayer::BP(std::vector<Mat> _G){
 			}
 		}
 	}
+	//cout << "G[0] : " << endl << G[0] << endl;
 	return G;
 }
 
@@ -608,15 +609,15 @@ public:
 		return X;
 	}
 
-	void BP(std::vector<Mat> X, std::vector<Mat> Y){
+	void BP(std::vector<Mat> Y){
 		//sample ..
-		FF(X);
 		auto& G = Y;
+		//cout << "Y" << Y[0] << endl;
 
 		for(auto i = L.rbegin(); i != L.rend(); ++i){
 			auto& l = (*i);
 			G = l->BP(G);
-			//cout << "G" << " : "<< endl << G[0].at<float>(0,0) << endl;
+			//cout << "G" << " : "<< endl << G[0] << endl;
 		}
 
 		for(auto& l : L){
@@ -822,7 +823,8 @@ int testConvNet(int argc, char* argv[]){
 
 	for(int i=0;i<1;++i){
 		cout << i << endl;
-		net.BP(X,Y);
+		net.FF(X);
+		net.BP(Y);
 	}
 
 	//std::cout << "_M_" << endl << m[0] << endl;
@@ -900,13 +902,15 @@ int testMNIST(int argc, char* argv[]){
 	}
 	ConvNet net;
 
-	net.push_back(new FlattenLayer(1));
-	net.push_back(new DenseLayer(1,75));
-	net.push_back(new ActivationLayer());
-	net.push_back(new DenseLayer(1,10));
-	net.push_back(new ActivationLayer());
-	net.push_back(new SoftMaxLayer());
+	/* ** DENSE LAYER TEST ** */
+	//net.push_back(new FlattenLayer(1));
+	//net.push_back(new DenseLayer(1,75));
+	//net.push_back(new ActivationLayer());
+	//net.push_back(new DenseLayer(1,10));
+	//net.push_back(new ActivationLayer());
+	//net.push_back(new SoftMaxLayer());
 	
+	/* ** CONV LAYER TEST ** */
 	//net.push_back(new ConvLayer(1,6));
 	//net.push_back(new ActivationLayer());
 	//net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
@@ -915,13 +919,23 @@ int testMNIST(int argc, char* argv[]){
 	//net.push_back(new ActivationLayer());
 	//net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
 
-	//net.push_back(new FlattenLayer(6));
+	//net.push_back(new FlattenLayer(16));
 	//net.push_back(new DenseLayer(1,84));
 	//net.push_back(new ActivationLayer());
 	//net.push_back(new DenseLayer(1,10));
 	//net.push_back(new ActivationLayer());
 
 	//net.push_back(new SoftMaxLayer());
+	
+	/* ** POOL LAYER TEST ** */
+	net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
+	net.push_back(new FlattenLayer(1));
+	net.push_back(new DenseLayer(1,75));
+	net.push_back(new ActivationLayer());
+	net.push_back(new DenseLayer(1,10));
+	net.push_back(new ActivationLayer());
+	net.push_back(new SoftMaxLayer());
+
 	net.setup(Size(28,28));
 	
 	Parser trainer("../data/trainData","../data/trainLabel");
@@ -936,7 +950,8 @@ int testMNIST(int argc, char* argv[]){
 		}
 		X[0] = d;
 		Y[0] = l;
-		net.BP(X,Y);
+		net.FF(X);
+		net.BP(Y);
 	}
 
 	Parser tester("../data/testData","../data/testLabel");
