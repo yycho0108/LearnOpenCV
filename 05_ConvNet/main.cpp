@@ -29,6 +29,7 @@ void intHandler(int){
 
 void setup(ConvNet& net){
 	/* ** CONV LAYER TEST ** */
+
 	net.push_back(new ConvolutionLayer(1,12));
 	net.push_back(new ActivationLayer("relu"));
 	net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
@@ -127,15 +128,40 @@ void test(ConvNet& net){
 
 	keepTesting = false;
 }
+void parseParams(int argc, char* argv[], int& lim){
+	enum{NONE=-1};
+	char opt = NONE;
+
+	for(int i=0;i<argc;++i){
+		switch(opt){
+			case 'd':
+				DECAY = std::atof(argv[i]);
+				opt = NONE;
+				break;
+			case 'e':
+				ETA = std::atof(argv[i]);
+				opt = NONE;
+				break;
+			case 'l':
+				lim = std::atoi(argv[i]);
+				opt = NONE;
+				break;
+			default:
+				break;
+		}
+		if(argv[i][0] == '-'){
+			opt = std::tolower(argv[i][1]);
+		}
+
+	}
+}
 
 int main(int argc, char* argv[]){
 	signal(SIGINT, intHandler);
 
 	int lim = 60000;
+	parseParams(argc,argv,lim);
 
-	if(argc != 1){
-		lim = std::atoi(argv[1]);
-	}
 	cout << lim << endl;
 
 	ConvNet net;

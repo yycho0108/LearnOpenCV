@@ -109,3 +109,6 @@ int argmax(Mat& m){
 	auto i = std::max_element(m.begin<float>(),m.end<float>());
 	return std::distance(m.begin<float>(),i);
 }
+
+float ETA = 0.6;
+float DECAY = 0.01;

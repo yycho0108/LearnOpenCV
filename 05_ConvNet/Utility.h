@@ -5,10 +5,6 @@
 #include <functional>
 #include <iostream>
 
-
-#define ETA 0.6
-#define DECAY 0.001
-
 using namespace std;
 using namespace cv;
 
@@ -37,5 +33,8 @@ extern void correlate(Mat& I, Mat& O, Mat& W, bool flip=false);
 extern Mat ave_pool(Mat& m, Size s);
 extern int argmax(Mat&); 
 
+
+extern float ETA;
+extern float DECAY;
 #endif
 
