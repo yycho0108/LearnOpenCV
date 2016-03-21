@@ -42,8 +42,12 @@ void train(ConvNet& net, int lim){
 	int i = 0;
 	int max_epoch = 1;
 	for(int epoch=0;epoch<max_epoch;++epoch){
-		while (trainer.read(d,l) && i<lim){
-			++i;
+
+		while (trainer.read(d,l)){
+
+			if(++i > lim)
+				return;
+
 			if(!(i%100)){
 				cout << "EPOCH >> " << i << endl;
 			}
@@ -61,7 +65,7 @@ void train(ConvNet& net, int lim){
 
 void test(ConvNet& net){
 	
-	Parser tester("../data/trainData","../data/trainLabel");
+	Parser tester("../data/testData","../data/testLabel");
 
 	Mat d,l;
 	std::vector<Mat> X(1),Y(1);
