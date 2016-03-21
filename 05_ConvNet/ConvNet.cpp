@@ -12,10 +12,13 @@ ConvNet::~ConvNet(){
 std::vector<Mat> ConvNet::FF(std::vector<Mat> _X){
 	auto& X = _X;
 	for(auto& l : L){
-		//cout << "X : " << endl << X[0] << endl;
 		X = l->FF(X);
-		//if(isnan(X[0]))
-		//	throw ("XISNAN!");
+
+		if(isnan(X)){
+			cout << "X : " << endl << X[0] << endl;
+			throw ("XISNAN!");
+		}
+
 	}
 	return X;
 }
@@ -28,8 +31,13 @@ void ConvNet::BP(std::vector<Mat> Yp, std::vector<Mat> Y){
 	}
 	//cout << "Y" << Y[0] << endl;
 	for(auto i = L.rbegin()+1; i != L.rend(); ++i){
-		//cout << "G" << " : "<< endl << G[0] << endl;
 		auto& l = (*i);
+
+		if(isnan(G)){
+			cout << "G" << " : "<< endl << G[0] << endl;
+			throw ("GISNAN!");
+		}
+
 		G = l->BP(G);
 	}
 

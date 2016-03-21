@@ -24,6 +24,14 @@ bool isnan(Mat& m){
 	return false;
 }
 
+bool isnan(std::vector<Mat>& v){
+	for(auto& m : v){
+		if(isnan(m))
+			return true;
+	}
+	return false;
+}
+
 float sigmoid(float x){
 	//if(isnan(x))
 	//	throw "SISNAN!!!!!!!";
@@ -63,9 +71,9 @@ void softMax(Mat& src, Mat& dst){
 	if(&dst != &src){
 		src.copyTo(dst);
 	}
-
-	double m = 0;
-	cv::minMaxIdx(src,nullptr,&m,nullptr,nullptr);
+	double m=0;
+	//m = *std::max_element(src.begin<float>(),src.end<float>());
+	cv::minMaxLoc(src,nullptr,&m,nullptr,nullptr);
 	exp(src-m,dst); //subtract by maximum to prevent overflow
 
 	auto s = cv::sum(dst);
@@ -73,14 +81,22 @@ void softMax(Mat& src, Mat& dst){
 }
 
 
-void correlate(cv::InputArray I, cv::OutputArray O,cv::InputArray W, bool flip){
-	if(flip){
-		Mat K;
-		cv::flip(W,K,-1);
-		return cv::filter2D(I,O,-1,K,Point(-1,-1),0.0,BORDER_CONSTANT);//convolution
-	}else{
-		return cv::filter2D(I,O,-1,W,Point(-1,-1),0.0,BORDER_CONSTANT);//correlation
-	}
+void correlate(Mat& I, Mat& O, Mat& W, bool flip){
+	Mat K;
+	if(flip)
+		cv::flip(W,K,-1); //convolution
+	else
+		K=W; //correlation
+
+
+	cv::filter2D(I,O,-1,K,Point(-1,-1),0.0,BORDER_CONSTANT);
+	
+	//std::cout << "I" << I << endl;
+	//std::cout << "O" << O << endl;
+
+	if(isnan(O))
+		throw "OISNAN!";
+	return;
 }
 
 Mat ave_pool(Mat& m, Size s){
@@ -93,5 +109,3 @@ int argmax(Mat& m){
 	auto i = std::max_element(m.begin<float>(),m.end<float>());
 	return std::distance(m.begin<float>(),i);
 }
-
-

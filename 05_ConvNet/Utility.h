@@ -3,10 +3,11 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 #include <functional>
+#include <iostream>
 
 
 #define ETA 0.6
-#define DECAY 0.01
+#define DECAY 0.001
 
 using namespace std;
 using namespace cv;
@@ -22,6 +23,7 @@ class ForEach : public ParallelLoopBody{
 };
 
 extern bool isnan(Mat&);
+extern bool isnan(std::vector<Mat>&);
 extern float sigmoid(float);
 extern float sigmoidPrime(float);
 extern float softplus(float);
@@ -31,7 +33,7 @@ extern float ReLUPrime(float);
 extern float tanhPrime(float);
 void softMax(Mat&,Mat&);
 
-extern void correlate(cv::InputArray I, cv::OutputArray O,cv::InputArray W, bool flip=false);
+extern void correlate(Mat& I, Mat& O, Mat& W, bool flip=false);
 extern Mat ave_pool(Mat& m, Size s);
 extern int argmax(Mat&); 
 

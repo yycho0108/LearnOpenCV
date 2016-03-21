@@ -21,6 +21,25 @@ std::vector<Mat>& DenseLayer::FF(std::vector<Mat> _I){
 	for(size_t i=0;i<I.size();++i){
 		O[i] = W[i]*I[i]+b[i];
 	}
+	if(isnan(O)){
+		cout << "I : " << endl;
+		for(auto& i : I){
+			cout << i << endl;
+		}
+		cout << "W : " << endl;
+		for(auto& w : W){
+			cout << w << endl;
+		}
+		cout << "b : " << endl;
+		for(auto& bb : b){
+			cout << bb << endl;
+		}
+		cout << "O : " << endl;
+		for(auto& o : O){
+			cout << o << endl;
+		}
+		throw "OISNAN-2";
+	}
 	return O;
 }
 std::vector<Mat>& DenseLayer::BP(std::vector<Mat> _G){

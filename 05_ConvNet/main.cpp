@@ -15,15 +15,15 @@ using namespace std;
 
 void setup(ConvNet& net){
 	/* ** CONV LAYER TEST ** */
-	net.push_back(new ConvolutionLayer(1,3));
+	net.push_back(new ConvolutionLayer(1,2));
 	net.push_back(new ActivationLayer("relu"));
 	net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
 
-	//net.push_back(new ConvolutionLayer(2,1));
+	//net.push_back(new ConvolutionLayer(12,16));
 	//net.push_back(new ActivationLayer("relu"));
 	//net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
-	
-	net.push_back(new FlattenLayer(3));
+		
+	net.push_back(new FlattenLayer(2));
 	net.push_back(new DenseLayer(1,84));
 	net.push_back(new ActivationLayer("sigmoid"));
 	net.push_back(new DenseLayer(1,10));
@@ -49,7 +49,7 @@ void train(ConvNet& net, int lim){
 				return;
 
 			if(!(i%100)){
-				cout << "EPOCH >> " << i << endl;
+				cout << "TRAINING ... " << i << endl;
 			}
 			X[0] = d;
 			Y[0] = l;

@@ -62,17 +62,19 @@ std::vector<Mat>& ConvolutionLayer::BP(std::vector<Mat> _G){
 	
 	auto iw = s.width;
 	auto ih = s.height;
-	auto ow = s.width;
-	auto oh = s.height;
+	//auto ow = s.width;
+	//auto oh = s.height;
 
 	//auto iw = I[0].size().width;
 	//auto ih = I[0].size().height;
 	
 	//auto ow = _G[0].size().width;
 	//auto oh = _G[0].size().height;
-
-	auto fwr = W[0].size().width/2; //kernel size
-	auto fhr = W[0].size().height/2;
+	
+	auto fw = W[0].size().width; //kernel size
+	auto fh = W[0].size().height;
+	auto fwr = fw/2; //kernel size
+	auto fhr = fh/2;
 
 	//cout << _G[0] << endl;	
 
@@ -85,7 +87,7 @@ std::vector<Mat>& ConvolutionLayer::BP(std::vector<Mat> _G){
 		//_G[o] = _G[o].mul(O[o]); //element-wise --> don't need since activation layer is separate now
 		//
 		dW[o] = Mat::zeros(W[o].size(),DataType<float>::type);//initialize dW
-		db[o] = Mat::zeros(b[o].size(),DataType<float>::type);
+		//db[o] = Mat::zeros(b[o].size(),DataType<float>::type);
 
 		//Mat K;
 		//flip(W[o],K,-1);
@@ -94,14 +96,29 @@ std::vector<Mat>& ConvolutionLayer::BP(std::vector<Mat> _G){
 			if(connection[o][i]){ //if the channels are related.. 
 
 				Mat tmp;
-
-				correlate(_G[o],tmp,W[o],false); //correlation (flip kernel)
+				correlate(_G[o],tmp,W[o],false); //correlation (convolution with flipped kernel)
 				G[i] += tmp;
 
 				//correlate(_G[o],tmp,I[i],false); //correlation
 				//dW[o] += tmp;
+				
+				for(int y=0;y<fh;++y){
+					for(int x=0;x<fw;++x){
+						//I[0,0] maps to G[x,y]
+						
+						Mat&& I_dw = I[i](cv::Rect(max(0,fwr-x),max(0,fhr-y),iw-abs(x-fwr),ih-abs(y-fhr)));
+						Mat&& G_dw = _G[o](cv::Rect(max(0,x-fwr),max(0,y-fhr),iw-abs(x-fwr),ih-abs(y-fhr)));
+						
+						//printf("X:%d,Y:%d\n",x-fwr,y-fhr);
+						//printf("I : (%d,%d) [%d,%d]\n", max(0,fwr-x),max(0,fhr-y),iw-abs(x-fwr),ih-abs(y-fhr));
+						//printf("G : (%d,%d) [%d,%d]\n", max(0,x-fwr),max(0,y-fhr),iw-abs(x-fwr),ih-abs(y-fhr));
+						
+						dW[o].at<float>(y,x) += cv::sum(I_dw.mul(G_dw))[0];  
 
-				for(int y=0; y<ih;++y){
+						//cout << "ADD : " << v  << endl;
+					}
+				}	
+				/*for(int y=0; y<ih;++y){
 					for(int x=0;x<iw;++x){
 
 						auto ymin = max(y-fhr,0);
@@ -118,11 +135,12 @@ std::vector<Mat>& ConvolutionLayer::BP(std::vector<Mat> _G){
 						//db[o] += I[i] * _G[o].at<float>(y,x);
 						//may not be right index
 					}
-				}
+				}*/
 			}
 		}
+		//cv::flip(dW[o],dW[o],-1);
 		dW[o] -= W[o]*DECAY;
-		db[o] += _G[o];
+		db[o] = _G[o]; //bias = gradient
 	}
 
 	return G;
@@ -141,7 +159,7 @@ void ConvolutionLayer::setup(Size s){
 	db.clear();
 	for(int o=0;o<d_o;++o){
 		db.push_back(Mat(s,DataType<float>::type,Scalar::all(0.0)));//wrong dimension though!	
-		b.push_back(Mat(s,DataType<float>::type,Scalar::all(0.5)));//wrong dimension though!	
+		b.push_back(Mat(s,DataType<float>::type,Scalar::all(0.1)));//wrong dimension though!	
 		O.push_back(Mat(s,DataType<float>::type));//wrong dimension though!	
 	}
 }
