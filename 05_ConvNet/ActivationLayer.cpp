@@ -4,11 +4,11 @@ void activate(Mat& src, Mat& dst, float (*f)(float)){
 	if(&dst != &src){
 		src.copyTo(dst);
 	}
-	for(auto i = dst.begin<float>();i != dst.end<float>(); ++i){
+	/*for(auto i = dst.begin<float>();i != dst.end<float>(); ++i){
 		auto& e = *i;
 		e = f(e);
-	}
-	//parallel_for_(Range(0,dst.rows*dst.cols),ForEach(dst.data,f));
+	}*/
+	parallel_for_(Range(0,dst.rows*dst.cols),ForEach(dst.data,f));
 
 	//if(isnan(dst))
 	//		throw "DISNAN";

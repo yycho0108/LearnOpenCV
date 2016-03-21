@@ -27,6 +27,7 @@ public:
 
 	virtual Size outputSize();
 	virtual void setup(Size);
+	std::vector<Mat>& getW();
 };
 
 #endif

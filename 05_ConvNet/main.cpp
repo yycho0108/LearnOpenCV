@@ -16,10 +16,15 @@ using namespace cv;
 using namespace std;
 
 
-static volatile int keepRunning = 1;
+static volatile bool keepTraining = true;
+static volatile bool keepTesting = true;
 
 void intHandler(int){
-	keepRunning = 0;
+	if(keepTraining){
+		keepTraining = false;
+	}else{
+		keepTesting = false;
+	}
 }
 
 void setup(ConvNet& net){
@@ -43,24 +48,22 @@ void setup(ConvNet& net){
 }
 
 void train(ConvNet& net, int lim){
+	keepTraining = true;
 
 	Parser trainer("../data/trainData","../data/trainLabel");
-	Mat d,l;
 	std::vector<Mat> X(1),Y(1);
 
 	int i = 0;
 	int max_epoch = 1;
 	for(int epoch=0;epoch<max_epoch;++epoch){
-		while (trainer.read(d,l)){
+		while (trainer.read(X[0],Y[0])){
 
-			if(++i > lim || !keepRunning)
+			if(++i > lim || !keepTraining)
 				return;
 
 			if(!(i%100)){
 				cout << "TRAINING ... " << i << endl;
 			}
-			X[0] = d;
-			Y[0] = l;
 			auto Yp = net.FF(X);
 			//cout << "YP: " << Yp[0].t() << endl;
 			//cout << "YL " << Y[0].t() << endl;
@@ -69,9 +72,11 @@ void train(ConvNet& net, int lim){
 		trainer.reset();
 	}
 
+	keepTraining = false;
 }
 
 void test(ConvNet& net){
+	keepTesting = true;
 	
 	Parser tester("../data/testData","../data/testLabel");
 
@@ -82,20 +87,34 @@ void test(ConvNet& net){
 	int inc = 0;
 
 /* VISUALIZING THE LEARNED KERNELS */	
-	/*namedWindow("M",WINDOW_AUTOSIZE);
-	trainer.read(d,l);
-	X[0] = d;
-	imshow("M",X[0]);
 	const auto& L = net.getL();
+	
+	
+	tester.read(X[0],Y[0]);
+	tester.reset();//reset immediately to not affect the later testing
+	
+	//auto& K = ((ConvolutionLayer*)L[0])->getW();
+	
+	namedWindow("X",WINDOW_AUTOSIZE);
+	imshow("X",X[0]);
+
 	auto& K = L[0]->FF(X);
-	namedWindow("K",WINDOW_AUTOSIZE);
-	imshow("K",K[0]);
-	waitKey();*/
+
+	Mat im(Size(100,100), DataType<float>::type);
+	for(size_t i=0;i<K.size();++i){
+		auto s = "K" +  std::to_string(i);
+		auto& k = K[i];
+		cout << k << endl;
+		cv::resize(k,im,im.size());
+		
+		namedWindow(s,WINDOW_AUTOSIZE);
+		imshow(s,im);
+	}
+
+	waitKey();
 /* END */
 
-	while(tester.read(d,l)){
-		X[0] = d;
-		Y[0] = l;
+	while(tester.read(X[0],Y[0]) && keepTesting){ //read into X,Y
 		cout << "OUTPUT : " << endl << net.FF(X)[0].t() << endl;
 		//cout << "TARGET : " << endl <<  Y[0].t() << endl;
 		auto y = argmax(net.FF(X)[0]);
@@ -106,6 +125,7 @@ void test(ConvNet& net){
 
 	}
 
+	keepTesting = false;
 }
 
 int main(int argc, char* argv[]){

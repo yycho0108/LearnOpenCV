@@ -167,3 +167,7 @@ void ConvolutionLayer::setup(Size s){
 Size ConvolutionLayer::outputSize(){
 	return s; //same since conv=same
 }
+
+std::vector<Mat>& ConvolutionLayer::getW(){
+	return W;
+}

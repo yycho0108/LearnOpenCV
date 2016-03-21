@@ -25,3 +25,12 @@ Dead Relu
 
 Alive Relu
 ![Alive Relu](images/AliveRelu.png)
+
+---
+Training Sample With MNIST Data:
+
+Identified Kernels:
+![Kernels](images/Kernels.png)
+
+Classification Results:
+![Results](images/Results.png)
