@@ -7,11 +7,20 @@
 #include <fstream>
 #include <ctime>
 
+#include <signal.h>
+
 #include "ConvNet.h"
 #include "Parser.h"
 
 using namespace cv;
 using namespace std;
+
+
+static volatile int keepRunning = 1;
+
+void intHandler(int){
+	keepRunning = 0;
+}
 
 void setup(ConvNet& net){
 	/* ** CONV LAYER TEST ** */
@@ -23,7 +32,7 @@ void setup(ConvNet& net){
 	net.push_back(new ActivationLayer("relu"));
 	net.push_back(new PoolLayer(Size(2,2),Size(2,2)));
 		
-	net.push_back(new FlattenLayer(5));
+	net.push_back(new FlattenLayer(16));
 	net.push_back(new DenseLayer(1,84));
 	net.push_back(new ActivationLayer("sigmoid"));
 	net.push_back(new DenseLayer(1,10));
@@ -42,10 +51,9 @@ void train(ConvNet& net, int lim){
 	int i = 0;
 	int max_epoch = 1;
 	for(int epoch=0;epoch<max_epoch;++epoch){
-
 		while (trainer.read(d,l)){
 
-			if(++i > lim)
+			if(++i > lim || !keepRunning)
 				return;
 
 			if(!(i%100)){
@@ -101,6 +109,7 @@ void test(ConvNet& net){
 }
 
 int main(int argc, char* argv[]){
+	signal(SIGINT, intHandler);
 
 	int lim = 60000;
 
