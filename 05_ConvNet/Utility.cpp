@@ -94,8 +94,8 @@ void correlate(Mat& I, Mat& O, Mat& W, bool flip){
 	//std::cout << "I" << I << endl;
 	//std::cout << "O" << O << endl;
 
-	if(isnan(O))
-		throw "OISNAN!";
+	//if(isnan(O))
+	//	throw "OISNAN!";
 	return;
 }
 

@@ -18,7 +18,7 @@ To Do:
 - [x] Solve the "Dead Relu" problem --> solved by initializing to mostly positive weights
 - [x] Handle SIGINT to quit midway gracefully
 - [ ] Add Saving/Loading of Networks
-- [ ] Turn Hard-coded parameters into tunable parameters
+- [x] Turn Hard-coded parameters into tunable parameters
 
 Dead Relu
 ![Dead Relu](images/DeadRelu.png)

@@ -10,8 +10,9 @@ ConvolutionLayer::ConvolutionLayer(int d_i, int d_o)
 	for(int o=0;o<d_o;++o){
 		connection[o] = new bool[d_i];
 		for(int i=0;i<d_i;++i){
-			connection[o][i] = true;//((o%3) != (i%3));
-			/*if(o%3 != i%3){ // ~2/3 connection
+				connection[o][i] = true;
+				//connection[o][i] = ((o%3) == (i%3));
+			/*if(o%3 != i%3){ // ~1/2 connection
 				connection[i][o] = true;
 			}*/
 		}

@@ -90,7 +90,6 @@ void test(ConvNet& net){
 /* VISUALIZING THE LEARNED KERNELS */	
 	const auto& L = net.getL();
 	
-	
 	tester.read(X[0],Y[0]);
 	tester.reset();//reset immediately to not affect the later testing
 	
@@ -105,7 +104,7 @@ void test(ConvNet& net){
 	for(size_t i=0;i<K.size();++i){
 		auto s = "K" +  std::to_string(i);
 		auto& k = K[i];
-		cout << k << endl;
+		//cout << k << endl;
 		cv::resize(k,im,im.size());
 		
 		namedWindow(s,WINDOW_AUTOSIZE);
@@ -116,14 +115,14 @@ void test(ConvNet& net){
 /* END */
 
 	while(tester.read(X[0],Y[0]) && keepTesting){ //read into X,Y
-		cout << "OUTPUT : " << endl << net.FF(X)[0].t() << endl;
+		auto y0 = net.FF(X)[0];
+		cout << "OUTPUT : " << endl << y0.t() << endl;
 		//cout << "TARGET : " << endl <<  Y[0].t() << endl;
-		auto y = argmax(net.FF(X)[0]);
+		auto y = argmax(y0);
 		auto t = argmax(Y[0]);
 		y==t?(++cor):(++inc);
 		cout << "O[" << argmax(net.FF(X)[0]) << "]:T[" << argmax(Y[0]) <<"]"<<endl;
 		printf("%d cor, %d inc\n", cor,inc);
-
 	}
 
 	keepTesting = false;
@@ -157,12 +156,17 @@ void parseParams(int argc, char* argv[], int& lim){
 }
 
 int main(int argc, char* argv[]){
+	/* Testing 3d Matrix Creation/Dereferencing
+	 * const int sz[] = {1,2,3};
+	Mat testing(3,sz,DataType<float>::type);
+	for(int i=0;i<testing.dims;++i){
+		cout << testing.size[i] << ',';
+	}*/
+
 	signal(SIGINT, intHandler);
 
 	int lim = 60000;
 	parseParams(argc,argv,lim);
-
-	cout << lim << endl;
 
 	ConvNet net;
 
