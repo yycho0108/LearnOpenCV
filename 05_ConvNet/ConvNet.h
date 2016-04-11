@@ -24,6 +24,8 @@ public:
 	void setup(Size s);
 	void push_back(Layer* l);
 	std::vector<Layer*> getL();//for debugging.
+	void save(std::string dir);//save directory
+	void load(std::string dir);
 
 };
 

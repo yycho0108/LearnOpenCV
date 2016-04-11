@@ -63,4 +63,21 @@ std::vector<Layer*> ConvNet::getL(){
 	return L;
 }
 
+void ConvNet::load(std::string dir){
+	//has to be EXACTLY the same architecture... to facilitate loading
+	//may change later
+	//not implemented
+	for(size_t i=0; i<L.size(); ++i){
+		auto& l = L[i];
+		l->load(dir, i)
+	}
 
+}
+
+void ConvNet::save(std::string dir){
+	//dir = directory name
+	for(size_t i=0; i<L.size(); ++i){
+		auto& l = L[i];
+		l->save(dir + std::to_string(i));
+	}
+}

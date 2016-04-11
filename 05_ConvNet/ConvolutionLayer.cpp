@@ -172,3 +172,13 @@ Size ConvolutionLayer::outputSize(){
 std::vector<Mat>& ConvolutionLayer::getW(){
 	return W;
 }
+
+void ConvolutionLayer::save(std::string f){
+	std::ofstream f_out(f);
+	for(auto& w : W){
+		f_out << w;
+	}
+	for(auto& _b : b){
+		f_out << _b;
+	}
+}

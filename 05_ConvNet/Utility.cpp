@@ -63,7 +63,8 @@ float ReLUPrime(float x){
 //}
 float tanhPrime(float x){
 	x = tanh(x);
-	return x * (1-x);
+	return 1 - x*x;
+	//return x * (1-x);
 }
 
 
@@ -111,4 +112,4 @@ int argmax(Mat& m){
 }
 
 float ETA = 0.6;
-float DECAY = 0.01;
+float DECAY = 0.001;

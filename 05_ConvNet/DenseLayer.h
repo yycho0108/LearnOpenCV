@@ -22,6 +22,7 @@ public:
 	virtual void setup(Size s);
 	virtual Size outputSize();
 	virtual void update();
+	virtual void save(std::string dir);
 };
 
 #endif

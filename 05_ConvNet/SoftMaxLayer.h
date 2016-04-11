@@ -18,6 +18,7 @@ public:
 	virtual Size outputSize();
 	double cost();
 	//no need to update since to trainable parameter
+	virtual void save(std::string dir);
 };
 
 #endif

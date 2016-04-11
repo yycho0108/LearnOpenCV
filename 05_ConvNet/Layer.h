@@ -1,6 +1,7 @@
 #ifndef __LAYER_H__
 #define __LAYER_H__
 #include "Utility.h"
+#include <fstream>
 
 class Layer{
 	public:
@@ -12,6 +13,9 @@ class Layer{
 		virtual void update(){};
 		virtual void setup(Size){};
 		virtual Size outputSize()=0;
+
+		virtual void save(std::string f, int i)=0;
+		virtual void load(std::string f, int i)=0;
 };
 
 #endif

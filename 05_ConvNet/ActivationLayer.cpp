@@ -61,3 +61,6 @@ void ActivationLayer::setup(Size s){
 Size ActivationLayer::outputSize(){
 	return s;
 }
+void ActivationLayer::save(std::string dir){
+	//nothing to save
+}

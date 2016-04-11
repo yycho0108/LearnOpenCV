@@ -48,29 +48,63 @@ void setup(ConvNet& net){
 	net.setup(Size(28,28));
 }
 
+void visualize(ConvNet& net){ //doesn't really work (since by nature convolution is translation invariant)
+	std::vector<Mat> X({Mat::zeros(28,28,DataType<float>::type)});
+	std::vector<Mat> Active;
+	Active.reserve(10);
+	for(int i=0;i<10;++i){
+		//ensure each matrix in different
+		Active.push_back(Mat::zeros(28,28,DataType<float>::type));
+	}
+	for(int i=0;i<28;++i){
+		for(int j=0;j<28;++j){
+			X[0].at<float>(i,j) = 1.0;//activate
+			auto Y = net.FF(X);
+			for(int k=0;k<10;++k){
+				Active[k].at<float>(i,j) = Y[0].at<float>(0,k); //or 10,1?
+			}
+			X[0].at<float>(i,j) = 0.0;
+		}
+	}
+
+	Mat im(Size(100,100), DataType<float>::type);
+	for(int i=0;i<10;++i){
+		auto s = "A" +  std::to_string(i);
+		namedWindow(s,WINDOW_AUTOSIZE);
+		//double maxVal = 0;
+		//cv::minMaxLoc(Active[i],nullptr,&maxVal);
+		//Active[i] /= maxVal;
+		cv::resize(Active[i],im,im.size());
+		//std::cout << im << std::endl;
+		imshow(s,im);
+	}
+	waitKey();
+}
+
 void train(ConvNet& net, int lim){
+	std::cout << "TRAINING FOR : " << lim << std::endl;
 	keepTraining = true;
 
 	Parser trainer("../data/trainData","../data/trainLabel");
 	std::vector<Mat> X(1),Y(1);
 
 	int i = 0;
-	int max_epoch = 1;
-	for(int epoch=0;epoch<max_epoch;++epoch){
-		while (trainer.read(X[0],Y[0])){
 
-			if(++i > lim || !keepTraining)
-				return;
-
-			if(!(i%100)){
-				cout << "TRAINING ... " << i << endl;
-			}
-			auto Yp = net.FF(X);
-			//cout << "YP: " << Yp[0].t() << endl;
-			//cout << "YL " << Y[0].t() << endl;
-			net.BP(Yp,Y);
+	while (1){
+		if(!trainer.read(X[0],Y[0])){//EOF
+			trainer.reset();
 		}
-		trainer.reset();
+
+		if(++i > lim || !keepTraining)
+			return;
+
+		if(!(i%100)){
+			cout << "TRAINING ... " << i << endl;
+		}
+		auto Yp = net.FF(X);
+		//cout << "YP: " << Yp[0].t() << endl;
+		//cout << "YL " << Y[0].t() << endl;
+		net.BP(Yp,Y);
 	}
 
 	keepTraining = false;
@@ -88,30 +122,30 @@ void test(ConvNet& net){
 	int inc = 0;
 
 /* VISUALIZING THE LEARNED KERNELS */	
-	const auto& L = net.getL();
-	
-	tester.read(X[0],Y[0]);
-	tester.reset();//reset immediately to not affect the later testing
-	
-	//auto& K = ((ConvolutionLayer*)L[0])->getW();
-	
-	namedWindow("X",WINDOW_AUTOSIZE);
-	imshow("X",X[0]);
+	//const auto& L = net.getL();
+	//
+	//tester.read(X[0],Y[0]);
+	//tester.reset();//reset immediately to not affect the later testing
+	//
+	////auto& K = ((ConvolutionLayer*)L[0])->getW();
+	//
+	//namedWindow("X",WINDOW_AUTOSIZE);
+	//imshow("X",X[0]);
 
-	auto& K = L[0]->FF(X);
+	//auto& K = L[0]->FF(X);
 
-	Mat im(Size(100,100), DataType<float>::type);
-	for(size_t i=0;i<K.size();++i){
-		auto s = "K" +  std::to_string(i);
-		auto& k = K[i];
-		//cout << k << endl;
-		cv::resize(k,im,im.size());
-		
-		namedWindow(s,WINDOW_AUTOSIZE);
-		imshow(s,im);
-	}
+	//Mat im(Size(100,100), DataType<float>::type);
+	//for(size_t i=0;i<K.size();++i){
+	//	auto s = "K" +  std::to_string(i);
+	//	auto& k = K[i];
+	//	//cout << k << endl;
+	//	cv::resize(k,im,im.size());
+	//	
+	//	namedWindow(s,WINDOW_AUTOSIZE);
+	//	imshow(s,im);
+	//}
 
-	waitKey();
+	//waitKey();
 /* END */
 
 	while(tester.read(X[0],Y[0]) && keepTesting){ //read into X,Y
@@ -172,7 +206,11 @@ int main(int argc, char* argv[]){
 
 	setup(net);
 	train(net, lim);
+	//visualize(net);
 	test(net);
+
+
+	net.save("save"); //save to directory
 
 	return 0;
 
