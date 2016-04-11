@@ -17,7 +17,7 @@ To Do:
 - [x] Logistic Regression / SoftMax Layer
 - [x] Solve the "Dead Relu" problem --> solved by initializing to mostly positive weights
 - [x] Handle SIGINT to quit midway gracefully
-- [ ] Add Saving/Loading of Networks
+- [x] Add Saving/Loading of Networks
 - [x] Turn Hard-coded parameters into tunable parameters
 
 Dead Relu

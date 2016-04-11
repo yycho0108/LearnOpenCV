@@ -1,4 +1,6 @@
 #include "ConvNet.h"
+#include <iostream>
+#include <cstdio>
 
 ConvNet::ConvNet(){
 	cv::theRNG().state = time(0);
@@ -63,21 +65,30 @@ std::vector<Layer*> ConvNet::getL(){
 	return L;
 }
 
-void ConvNet::load(std::string dir){
+void ConvNet::load(std::string f){
 	//has to be EXACTLY the same architecture... to facilitate loading
 	//may change later
 	//not implemented
-	for(size_t i=0; i<L.size(); ++i){
-		auto& l = L[i];
-		l->load(dir, i)
+	FileStorage fs(f,FileStorage::READ);
+	if(fs.isOpened()){
+		for(size_t i=0; i<L.size(); ++i){
+			L[i]->load(fs,i);
+		}
+	}else{
+		std::cerr << "WASN'T ABLE TO LOAD FROM FILE" << std::endl;
 	}
 
 }
 
-void ConvNet::save(std::string dir){
+void ConvNet::save(std::string f){
 	//dir = directory name
-	for(size_t i=0; i<L.size(); ++i){
-		auto& l = L[i];
-		l->save(dir + std::to_string(i));
+	std::remove(f.c_str()); //const char* filename
+	FileStorage fs(f, FileStorage::WRITE);
+	if(fs.isOpened()){
+		for(size_t i=0; i<L.size(); ++i){
+			L[i]->save(fs,i);
+		}
+	}else{
+		std::cerr << "WASN'T ABLE TO LOAD FROM FILE" << std::endl;
 	}
 }

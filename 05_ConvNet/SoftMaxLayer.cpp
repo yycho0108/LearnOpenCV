@@ -35,4 +35,11 @@ Size SoftMaxLayer::outputSize(){
 	return s;
 }
 
+void SoftMaxLayer::save(FileStorage&,int){
+
+}
+
+void SoftMaxLayer::load(FileStorage&,int){
+
+}
 

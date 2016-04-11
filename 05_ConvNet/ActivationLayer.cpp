@@ -61,6 +61,11 @@ void ActivationLayer::setup(Size s){
 Size ActivationLayer::outputSize(){
 	return s;
 }
-void ActivationLayer::save(std::string dir){
-	//nothing to save
+
+void ActivationLayer::save(FileStorage&, int){
+	
 }
+
+void ActivationLayer::load(FileStorage&, int){
+
+}	

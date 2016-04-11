@@ -14,8 +14,8 @@ class Layer{
 		virtual void setup(Size){};
 		virtual Size outputSize()=0;
 
-		virtual void save(std::string f, int i)=0;
-		virtual void load(std::string f, int i)=0;
+		virtual void save(FileStorage& f, int i)=0;
+		virtual void load(FileStorage& f, int i)=0;
 };
 
 #endif

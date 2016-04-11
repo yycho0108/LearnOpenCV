@@ -28,7 +28,9 @@ public:
 	virtual Size outputSize();
 	virtual void setup(Size);
 	std::vector<Mat>& getW();
-	virtual void save(std::string dir);
+
+	virtual void save(FileStorage& f, int i);
+	virtual void load(FileStorage& f, int i);
 };
 
 #endif

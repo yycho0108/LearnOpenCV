@@ -19,7 +19,9 @@ public:
 
 	virtual Size outputSize();
 	virtual void setup(Size);
-	virtual void save(std::string dir);
+
+	virtual void save(FileStorage& f, int i);
+	virtual void load(FileStorage& f, int i);
 };
 
 #endif

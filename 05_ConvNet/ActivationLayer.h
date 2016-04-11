@@ -20,8 +20,9 @@ public:
 	virtual std::vector<Mat>& BP(std::vector<Mat> G);
 	virtual void setup(Size s);
 	virtual Size outputSize();
-	virtual void save(std::string dir);
 	//no need to update since to trainable parameter
+	virtual void save(FileStorage& f, int i);
+	virtual void load(FileStorage& f, int i);
 };
 
 

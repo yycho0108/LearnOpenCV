@@ -60,3 +60,24 @@ void DenseLayer::update(){
 Size DenseLayer::outputSize(){
 	return Size(1,s_o); //Size(width,height);
 }
+
+
+void DenseLayer::save(FileStorage& fs, int i){
+	auto prefix = "D" + std::to_string(i);
+
+	for(size_t i=0;i<W.size();++i){
+		fs << (prefix + "_" + "W" + std::to_string(i)) << W[i];
+	}
+
+	for(size_t i=0;i < b.size();++i){
+		fs << (prefix + "_" + "b" + std::to_string(i)) << b[i];
+	}
+}
+
+void DenseLayer::load(FileStorage& fs, int i){
+	auto prefix = "D" + std::to_string(i);
+	for(size_t i=0; i<W.size(); ++i){
+		fs[prefix+"_"+"W"+std::to_string(i)] >> W[i];
+		fs[prefix+"_"+"b"+std::to_string(i)] >> b[i];
+	}
+}

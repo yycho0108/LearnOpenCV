@@ -18,7 +18,9 @@ public:
 	virtual Size outputSize();
 	double cost();
 	//no need to update since to trainable parameter
-	virtual void save(std::string dir);
+	//
+	virtual void save(FileStorage& f, int i);
+	virtual void load(FileStorage& f, int i);
 };
 
 #endif

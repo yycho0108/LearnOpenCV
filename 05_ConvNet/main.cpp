@@ -188,6 +188,15 @@ void parseParams(int argc, char* argv[], int& lim){
 
 	}
 }
+bool prompt(std::string query){
+	std::cout << query << std::endl;
+	char answer;
+	std::cin >> answer;
+	answer = std::tolower(answer);
+	if(answer == 'y' || answer == 'Y')
+		return true; //yes
+	return false; //default no
+}
 
 int main(int argc, char* argv[]){
 	/* Testing 3d Matrix Creation/Dereferencing
@@ -205,12 +214,16 @@ int main(int argc, char* argv[]){
 	ConvNet net;
 
 	setup(net);
+
+	if(prompt("LOAD NETWORK?"))
+		net.load("save");
+
 	train(net, lim);
 	//visualize(net);
 	test(net);
 
-
-	net.save("save"); //save to directory
+	if(prompt("SAVE NETWORK?"))
+		net.save("save"); //save to directory
 
 	return 0;
 

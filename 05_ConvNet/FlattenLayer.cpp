@@ -32,3 +32,10 @@ void FlattenLayer::setup(Size s){
 Size FlattenLayer::outputSize(){
 	return Size(1,d*s.width*s.height);
 }
+void FlattenLayer::save(FileStorage&,int){
+
+}
+
+void FlattenLayer::load(FileStorage&,int){
+
+}

@@ -173,12 +173,22 @@ std::vector<Mat>& ConvolutionLayer::getW(){
 	return W;
 }
 
-void ConvolutionLayer::save(std::string f){
-	std::ofstream f_out(f);
-	for(auto& w : W){
-		f_out << w;
+void ConvolutionLayer::save(FileStorage& fs, int i){
+	auto prefix = "CV" + std::to_string(i);
+
+	for(size_t i=0;i<W.size();++i){
+		fs << (prefix + "_" + "W" + std::to_string(i)) << W[i];
 	}
-	for(auto& _b : b){
-		f_out << _b;
+
+	for(size_t i=0;i < b.size();++i){
+		fs << (prefix + "_" + "b" + std::to_string(i)) << b[i];
+	}
+}
+
+void ConvolutionLayer::load(FileStorage& fs, int i){
+	auto prefix = "CV" + std::to_string(i);
+	for(size_t i=0; i<W.size(); ++i){
+		fs[prefix+"_"+"W"+std::to_string(i)] >> W[i];
+		fs[prefix+"_"+"b"+std::to_string(i)] >> b[i];
 	}
 }

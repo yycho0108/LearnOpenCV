@@ -93,3 +93,11 @@ Size PoolLayer::outputSize(){
 	return Size(w,h);
 }
 
+void PoolLayer::save(FileStorage&, int){
+
+}
+
+void PoolLayer::load(FileStorage&, int){
+
+}
+
