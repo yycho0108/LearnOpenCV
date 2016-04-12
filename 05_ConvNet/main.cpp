@@ -212,12 +212,10 @@ int main(int argc, char* argv[]){
 	parseParams(argc,argv,lim);
 
 	ConvNet net;
-
-	setup(net);
-
 	if(prompt("LOAD NETWORK?"))
 		net.load("save");
 
+	setup(net);
 	train(net, lim);
 	//visualize(net);
 	test(net);

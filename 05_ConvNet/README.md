@@ -33,4 +33,9 @@ Identified Kernels:
 ![Kernels](images/Kernels.png)
 
 Classification Results:
+
+![Results2](images/Results_2.png)
+With better parameters, the ConvNet achieved >95% Classification Success.
+
+Older Result:
 ![Results](images/Results.png)
