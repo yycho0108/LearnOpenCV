@@ -36,5 +36,6 @@ extern int argmax(Mat&);
 
 extern float ETA;
 extern float DECAY;
+extern float constrain(float x, float l, float h);
 #endif
 

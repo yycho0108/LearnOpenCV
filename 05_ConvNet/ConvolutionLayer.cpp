@@ -2,7 +2,10 @@
 #include <thread> //attempt
 
 ConvolutionLayer::ConvolutionLayer(int d_i, int d_o)
-	:d_i(d_i),d_o(d_o),dW(d_o){
+	:d_i(d_i),d_o(d_o),dW(d_o),dW_p(d_o),db(d_o),db_p(d_o){
+
+	m = 0.9; //momentum
+
 	// Size Before SubSampling
 	// d_i = depth of input layers
 	// d_o = depth of output layers
@@ -21,7 +24,12 @@ ConvolutionLayer::ConvolutionLayer(int d_i, int d_o)
 
 	for(int o=0;o<d_o;++o){
 		W.push_back(Mat(5,5,DataType<float>::type));//hard-coded kernel size
+		g.push_back(Mat::ones(5,5,DataType<float>::type));
 		cv::randn(W[o],cv::Scalar::all(0),cv::Scalar::all(0.1));
+
+		//dW[o] = Mat::zeros(W[o].size(),DataType<float>::type); --> unnecessary
+		dW_p[o] = Mat::zeros(5,5,DataType<float>::type);
+		//db_p.push_back(Mat::zeros(5,5,DataType<float>::type)); --> setup later.
 	}
 }
 ConvolutionLayer::~ConvolutionLayer(){
@@ -93,7 +101,7 @@ std::vector<Mat>& ConvolutionLayer::BP(std::vector<Mat> _G){
 			//_G[o] = _G[o].mul(O[o]); //element-wise --> don't need since activation layer is separate now
 			//
 			dW[o] = Mat::zeros(W[o].size(),DataType<float>::type);//initialize dW
-			//db[o] = Mat::zeros(b[o].size(),DataType<float>::type);
+			//db[o] = Mat::zeros(b[o].size(),DataType<float>::type); --> not necessary
 
 			//Mat K;
 			//flip(W[o],K,-1);
@@ -141,8 +149,25 @@ std::vector<Mat>& ConvolutionLayer::BP(std::vector<Mat> _G){
 					}*/
 				}
 			}
-			dW[o] -= W[o]*DECAY;
-			db[o] = _G[o]; //bias = gradient
+			dW[o] = m * dW_p[o]
+					+ ETA * g[o].mul(dW[o])
+					- W[o]*DECAY;
+
+			db[o] = m * db_p[o] 
+					+ ETA * _G[o]; //bias = gradient
+
+//			auto sgn = cv::sum(db[o].mul(db_p[o]))[0];
+//
+//			if(sgn>0){
+//				g *= 1.05;
+//			}else if(sgn<0){
+//				g *= 0.7;
+//			}
+//			g = constrain(g,0.1,10.0);
+
+			dW_p[o] = dW[o];
+			db_p[o] = db[o];
+			//test if these become the same object... hope not.
 		//},o);
 		//cv::flip(dW[o],dW[o],-1);
 	}
@@ -155,19 +180,23 @@ std::vector<Mat>& ConvolutionLayer::BP(std::vector<Mat> _G){
 }
 void ConvolutionLayer::update(){
 	for(int o=0;o<d_o;++o){
-		W[o] += ETA * dW[o];
-		b[o] += ETA * db[o];
+		W[o] += dW[o];
+		b[o] += db[o];
 	}
 }
 
 void ConvolutionLayer::setup(Size s){
 	this->s = s;
+
 	b.clear();
-	O.clear();
 	db.clear();
+	db_p.clear();
+	O.clear();
+
 	for(int o=0;o<d_o;++o){
-		db.push_back(Mat(s,DataType<float>::type,Scalar::all(0.0)));//wrong dimension though!	
 		b.push_back(Mat(s,DataType<float>::type,Scalar::all(0.1)));//wrong dimension though!	
+		db.push_back(Mat(s,DataType<float>::type,Scalar::all(0.0)));//wrong dimension though!	
+		db_p.push_back(Mat(s,DataType<float>::type,Scalar::all(0.0)));//wrong dimension though!	
 		O.push_back(Mat(s,DataType<float>::type));//wrong dimension though!	
 	}
 }

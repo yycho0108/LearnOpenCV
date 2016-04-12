@@ -5,10 +5,15 @@
 class DenseLayer : public Layer{
 private:
 	int d,s_i,s_o;
+	float m; //momentum
 	std::vector<Mat> W;
 	std::vector<Mat> b;
 	std::vector<Mat> dW;
 	std::vector<Mat> db;
+	std::vector<Mat> g; //local gain
+
+	std::vector<Mat> dW_p;//previous
+	std::vector<Mat> db_p;
 	
 	std::vector<Mat> I;
 	std::vector<Mat> O;

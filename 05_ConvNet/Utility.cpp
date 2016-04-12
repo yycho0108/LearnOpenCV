@@ -111,5 +111,9 @@ int argmax(Mat& m){
 	return std::distance(m.begin<float>(),i);
 }
 
+float constrain(float x, float l, float h){
+	return x<l?l:x>h?h:x;
+}
+
 float ETA = 0.6;
 float DECAY = 0.001;

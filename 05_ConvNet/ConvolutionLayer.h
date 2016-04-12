@@ -6,12 +6,17 @@ class ConvolutionLayer : public Layer{
 private:
 	Size s;
 	int d_i, d_o; //depth of input layers, depth of output layers
+	float m; //momentum
 	bool** connection;
 	
 	std::vector<Mat> W;
 	std::vector<Mat> b;
 	std::vector<Mat> dW;
+	std::vector<Mat> dW_p; //previous
 	std::vector<Mat> db;
+	std::vector<Mat> db_p; //previous
+
+	std::vector<Mat> g; //local gain matrix
 
 	std::vector<Mat> I;
 	std::vector<Mat> O;
