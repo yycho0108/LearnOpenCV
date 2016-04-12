@@ -19,6 +19,7 @@ To Do:
 - [x] Handle SIGINT to quit midway gracefully
 - [x] Add Saving/Loading of Networks
 - [x] Turn Hard-coded parameters into tunable parameters
+- [ ] Add Dropout Units
 
 Dead Relu
 ![Dead Relu](images/DeadRelu.png)

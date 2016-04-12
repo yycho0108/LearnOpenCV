@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(ConvNet)
 find_package(OpenCV REQUIRED)
+find_package(Threads)
 
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++11" COMPILER_SUPPORTS_CXX11)
@@ -43,4 +44,4 @@ set(HEADERS
 
 add_executable(ConvNet ${SOURCES} ${HEADERS})
 
-target_link_libraries(ConvNet ${OpenCV_LIBS})
+target_link_libraries(ConvNet ${OpenCV_LIBS} ${CMAKE_THREAD_LIBS_INIT})

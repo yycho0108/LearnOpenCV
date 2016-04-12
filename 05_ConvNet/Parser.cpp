@@ -15,6 +15,11 @@ bool Parser::read(Mat& d, Mat& l){
 	d = Mat(28,28,DataType<unsigned char>::type,buf_d);
 	d.convertTo(d,DataType<float>::type,1/256.0);
 
+	//d *= 1.275;
+	//d -= 0.1;
+	
+	//will normalize input as described in LeNet paper. let's see how it goes
+
 	l = Mat::zeros(10,1,DataType<float>::type);
 	l.at<float>(buf_l[0],0) = 1.0;
 	
