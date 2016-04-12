@@ -193,8 +193,12 @@ bool prompt(std::string query){
 	char answer;
 	std::cin >> answer;
 	answer = std::tolower(answer);
-	if(answer == 'y' || answer == 'Y')
+	if(answer == 'y' || answer == 'Y'){
+		cout << "[YES]" << std::endl;
 		return true; //yes
+	}
+
+	cout << "[NO]" << std::endl;
 	return false; //default no
 }
 
@@ -212,10 +216,11 @@ int main(int argc, char* argv[]){
 	parseParams(argc,argv,lim);
 
 	ConvNet net;
+	setup(net);
+
 	if(prompt("LOAD NETWORK?"))
 		net.load("save");
 
-	setup(net);
 	train(net, lim);
 	//visualize(net);
 	test(net);
