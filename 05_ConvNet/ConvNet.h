@@ -14,6 +14,7 @@ class ConvNet{
 
 private:
 	std::vector<Layer*> L;
+	double loss;
 public:
 	
 	ConvNet();
@@ -26,6 +27,7 @@ public:
 	std::vector<Layer*> getL();//for debugging.
 	void save(std::string dir);//save directory
 	void load(std::string dir);
+	double error();
 
 };
 

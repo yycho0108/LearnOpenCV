@@ -3,7 +3,7 @@
 
 DenseLayer::DenseLayer(int d, int s_o)
 	:d(d),s_o(s_o),W(d),b(d),dW(d),db(d),g(d),dW_p(d),db_p(d),I(d),O(d),G(d){
-		m = 0.9; //momentum
+		m = 0.0; //momentum
 }
 void DenseLayer::setup(Size s){
 	this->s_i = s.height;

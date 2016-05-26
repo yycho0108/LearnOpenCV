@@ -4,7 +4,7 @@
 ConvolutionLayer::ConvolutionLayer(int d_i, int d_o)
 	:d_i(d_i),d_o(d_o),dW(d_o),dW_p(d_o),db(d_o),db_p(d_o){
 
-	m = 0.9; //momentum
+	m = 0.0; //momentum
 
 	// Size Before SubSampling
 	// d_i = depth of input layers
@@ -105,13 +105,13 @@ std::vector<Mat>& ConvolutionLayer::BP(std::vector<Mat> _G){
 
 			//Mat K;
 			//flip(W[o],K,-1);
+			Mat tmp;
+			correlate(_G[o],tmp,W[o],false); //correlation (convolution with flipped kernel)
+
 			for(int i=0;i<d_i;++i){ //for each input channel
 				if(connection[o][i]){ //if the channels are related.. 
 
-					Mat tmp;
-					correlate(_G[o],tmp,W[o],false); //correlation (convolution with flipped kernel)
 					G[i] += tmp;
-
 					//correlate(_G[o],tmp,I[i],false); //correlation
 					//dW[o] += tmp;
 					

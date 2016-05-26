@@ -90,6 +90,7 @@ void train(ConvNet& net, int lim){
 
 	int i = 0;
 
+	std::ofstream ferr("error.csv");
 	while (1){
 		if(!trainer.read(X[0],Y[0])){//EOF
 			trainer.reset();
@@ -105,7 +106,11 @@ void train(ConvNet& net, int lim){
 		//cout << "YP: " << Yp[0].t() << endl;
 		//cout << "YL " << Y[0].t() << endl;
 		net.BP(Yp,Y);
+		ferr << net.error() << '\n';
 	}
+	ferr << std::endl;
+	ferr.flush();
+	ferr.close();
 
 	keepTraining = false;
 }
@@ -157,6 +162,7 @@ void test(ConvNet& net){
 		y==t?(++cor):(++inc);
 		cout << "O[" << argmax(net.FF(X)[0]) << "]:T[" << argmax(Y[0]) <<"]"<<endl;
 		printf("%d cor, %d inc\n", cor,inc);
+		
 	}
 
 	keepTesting = false;

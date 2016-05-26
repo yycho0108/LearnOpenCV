@@ -31,6 +31,9 @@ void ConvNet::BP(std::vector<Mat> Yp, std::vector<Mat> Y){
 	for(size_t i=0;i<G.size();++i){
 		cv::subtract(Y[i],Yp[i],G[i]); //G[i] = O[i]Y[i] - O[i];
 	}
+
+	loss = sqrt( cv::sum(G[0].mul(G[0]))[0] / 10.0);
+
 	//cout << "Y" << Y[0] << endl;
 	for(auto i = L.rbegin()+1; i != L.rend(); ++i){
 		auto& l = (*i);
@@ -91,4 +94,8 @@ void ConvNet::save(std::string f){
 	}else{
 		std::cerr << "WASN'T ABLE TO LOAD FROM FILE" << std::endl;
 	}
+}
+
+double ConvNet::error(){
+	return loss;
 }

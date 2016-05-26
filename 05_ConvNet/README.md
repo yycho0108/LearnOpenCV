@@ -6,7 +6,7 @@ Convolution Neural Network
 - [x] Implement Neural Network
 - [ ] Implement Optimization Schemes other than stochastic gradient descent
 - [ ] Vectorize Layers(Convolution Depths) from std::vector
-- [ ] Introduce Momentum from previous dw
+- [x] Introduce Momentum from previous dw
 - [ ] Automatically adjust alpha (learning rate) based on dw
 
 Debugging

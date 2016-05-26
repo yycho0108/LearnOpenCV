@@ -5,6 +5,10 @@
 #include <functional>
 #include <iostream>
 
+
+#define namedPrint(x) \
+	std::cout << #x << " : " << x << std::endl;
+
 using namespace std;
 using namespace cv;
 

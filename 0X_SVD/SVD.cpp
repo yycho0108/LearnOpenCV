@@ -63,7 +63,7 @@ Mat S,U,VT;
 void onTrackbarChange(int, void*){
 	Mat M = Mat::zeros(img.rows,img.cols,CV_32FC1);
 	//std::cout << S1 << std::endl;
-	for(int i=0;i<k;++i){
+	for(int i=10;i<k;++i){
 		if(isnan(S.at<float>(0,i)))
 			break;
 		Mat tmp =  U.col(i) * S.at<float>(i) * VT.row(i);

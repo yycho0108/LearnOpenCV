@@ -115,5 +115,5 @@ float constrain(float x, float l, float h){
 	return x<l?l:x>h?h:x;
 }
 
-float ETA = 0.6;
+float ETA = 0.1;
 float DECAY = 0.001;
