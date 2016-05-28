@@ -41,6 +41,7 @@ void setup(ConvNet& net){
 	net.push_back(new FlattenLayer(16));
 	net.push_back(new DenseLayer(1,84));
 	net.push_back(new ActivationLayer("sigmoid"));
+	net.push_back(new DropoutLayer(1,0.5));
 	net.push_back(new DenseLayer(1,10));
 	net.push_back(new ActivationLayer("sigmoid"));
 	net.push_back(new SoftMaxLayer());
@@ -83,7 +84,9 @@ void visualize(ConvNet& net){ //doesn't really work (since by nature convolution
 
 void train(ConvNet& net, int lim){
 	std::cout << "TRAINING FOR : " << lim << std::endl;
+
 	keepTraining = true;
+	TEST_STATE = false;
 
 	Parser trainer("../data/trainData","../data/trainLabel");
 	std::vector<Mat> X(1),Y(1);
@@ -117,6 +120,7 @@ void train(ConvNet& net, int lim){
 
 void test(ConvNet& net){
 	keepTesting = true;
+	TEST_STATE = true;
 	
 	Parser tester("../data/testData","../data/testLabel");
 

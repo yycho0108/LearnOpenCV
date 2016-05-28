@@ -117,3 +117,4 @@ float constrain(float x, float l, float h){
 
 float ETA = 0.1;
 float DECAY = 0.001;
+bool TEST_STATE = false;

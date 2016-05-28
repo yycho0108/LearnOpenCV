@@ -24,6 +24,7 @@ set(SOURCES
 	${CMAKE_CURRENT_SOURCE_DIR}/SoftMaxLayer.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/PoolLayer.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/ConvolutionLayer.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/DropoutLayer.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/ConvNet.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
 )
@@ -39,6 +40,7 @@ set(HEADERS
 	${CMAKE_CURRENT_SOURCE_DIR}/SoftMaxLayer.h
 	${CMAKE_CURRENT_SOURCE_DIR}/PoolLayer.h
 	${CMAKE_CURRENT_SOURCE_DIR}/ConvolutionLayer.h
+	${CMAKE_CURRENT_SOURCE_DIR}/DropoutLayer.h
 	${CMAKE_CURRENT_SOURCE_DIR}/ConvNet.h
 )
 

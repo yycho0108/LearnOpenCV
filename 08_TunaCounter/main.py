@@ -38,40 +38,53 @@ from skimage.morphology import watershed
  
 
 def process(image):
+
+    #RESIZE
     image = cv2.resize(image, dsize=(512,512))
 
-    shifted = cv2.pyrMeanShiftFiltering(image,9,15) # -- 9,15 arbitrary
+    #REDUCE NOISE
+    shifted = cv2.pyrMeanShiftFiltering(image,9,21) # -- 9,21 arbitrary
 
+    #CONVERT TO GRAYSCALE
     gray = cv2.cvtColor(shifted, cv2.COLOR_BGR2GRAY)
 
-    ksize = 13
+    #SUBTRACT BACKGROUND
+    gray = cv2.absdiff(gray,cv2.mean(gray)[0])
+    cv2.imshow("TEST",gray)
 
-    g_image = cv2.GaussianBlur(gray,(ksize,ksize),0)
-    l_image = cv2.Laplacian(g_image,cv2.CV_64FC1,ksize=ksize)
-    cv2.imshow("LAPLACE",l_image)
+    #ksize = 7
+    #g_image = cv2.GaussianBlur(gray,(ksize,ksize),0)
+    #l_image = cv2.Laplacian(g_image,cv2.CV_64FC1,ksize=ksize)
+    #cv2.imshow("LAPLACE",l_image)
 
+    #APPLY ADAPTIVE THRESHOLD
     thresh = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
             cv2.THRESH_BINARY_INV,13,2) # -- 13,2 arbitrary
-    # --> yields edges
+    cv2.imshow("THRSH",thresh) # --> EDGES
 
     #val, thresh = cv2.threshold(gray,110,255,cv2.THRESH_BINARY| cv2.THRESH_OTSU)
 
+    #COMPLETE CONTOUR
     kernel = np.ones((3,3),np.float32) # -- 3,3 arbitrary
-    dilated = cv2.dilate(thresh,kernel,iterations = 3) # -- 3 arbitrary
+    dilated = cv2.dilate(thresh,kernel,iterations = 4) # -- 3 arbitrary
+    #cv2.imshow("DILATED",dilated)
 
+    #FILL CONTOUR
     cnts = cv2.findContours(dilated.copy(),cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
-
     closed = cv2.drawContours(dilated,cnts,-1,(255,255,255),-1)
-    closed = cv2.morphologyEx(closed, cv2.MORPH_CLOSE, kernel)
+    closed = cv2.morphologyEx(closed, cv2.MORPH_CLOSE, kernel) # fill holes
 
-    #image = cv2.drawContours(image,cnts,-1,(255,255,255),-1)
-
+    #KEYPOINTS
+    fast = cv2.FastFeatureDetector_create()
+    kp = fast.detect(gray,None)
+    kpts = cv2.drawKeypoints(image,kp,image.copy(),color=(255,0,0))
+    cv2.imshow("KeyPoints",kpts)
     return image, closed
 
 def identify(image,processed):
 
     D = ndimage.distance_transform_edt(processed.copy())
-    localMax = peak_local_max(D, indices=False, min_distance=60,
+    localMax = peak_local_max(D, indices=False, min_distance=40,
             labels=processed.copy())
      
     # perform a connected component analysis on the local peaks,
@@ -99,7 +112,7 @@ def identify(image,processed):
             contours += [c]
 
     c = max(contours, key=cv2.contourArea)
-    ar = cv2.contourArea(c)
+    ar = cv2.contourArea(c) # max area
 
     valid_contours = [c for c in contours if cv2.contourArea(c) > 0.5 * ar]
     #arbitrary heuristic : valid "tuna" must be at least bigger than half of the biggest one
@@ -117,10 +130,10 @@ def identify(image,processed):
 BASE_DIR = 'Samples-Hexacopter-Tuna'
 
 #RANDOM IMAGE
-SUB_DIR = BASE_DIR + '/' + random.choice(os.listdir(BASE_DIR))
-IMG_FILE = SUB_DIR + '/' +random.choice(os.listdir(SUB_DIR))
+#SUB_DIR = BASE_DIR + '/' + random.choice(os.listdir(BASE_DIR))
+#IMG_FILE = SUB_DIR + '/' +random.choice(os.listdir(SUB_DIR))
 
-#IMG_FILE = BASE_DIR + '/' + 'Clear' + '/' + 'P9010878.JPG' 
+IMG_FILE = BASE_DIR + '/' + 'Clear' + '/' + 'P9010878.JPG' 
 #IMG_FILE = 'Samples-Hexacopter-Tuna/Test/P9010093.JPG'
 
 print 'FILE : {}'.format(IMG_FILE)

@@ -38,8 +38,10 @@ extern Mat ave_pool(Mat& m, Size s);
 extern int argmax(Mat&); 
 
 
+extern float constrain(float x, float l, float h);
+
 extern float ETA;
 extern float DECAY;
-extern float constrain(float x, float l, float h);
+extern bool TEST_STATE; 
 #endif
 

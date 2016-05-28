@@ -8,6 +8,7 @@
 #include "ConvolutionLayer.h"
 #include "PoolLayer.h"
 #include "SoftMaxLayer.h"
+#include "DropoutLayer.h"
 
 
 class ConvNet{
