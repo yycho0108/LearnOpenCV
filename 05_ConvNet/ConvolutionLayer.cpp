@@ -4,7 +4,7 @@
 ConvolutionLayer::ConvolutionLayer(int d_i, int d_o)
 	:d_i(d_i),d_o(d_o),dW(d_o),dW_p(d_o),db(d_o),db_p(d_o){
 
-	m = 0.0; //momentum
+	m = 0.3; //momentum
 
 	// Size Before SubSampling
 	// d_i = depth of input layers
@@ -194,7 +194,7 @@ void ConvolutionLayer::setup(Size s){
 	O.clear();
 
 	for(int o=0;o<d_o;++o){
-		b.push_back(Mat(s,DataType<float>::type,Scalar::all(0.1)));//wrong dimension though!	
+		b.push_back(Mat(s,DataType<float>::type,Scalar::all(0.0)));//wrong dimension though!	
 		db.push_back(Mat(s,DataType<float>::type,Scalar::all(0.0)));//wrong dimension though!	
 		db_p.push_back(Mat(s,DataType<float>::type,Scalar::all(0.0)));//wrong dimension though!	
 		O.push_back(Mat(s,DataType<float>::type));//wrong dimension though!	
