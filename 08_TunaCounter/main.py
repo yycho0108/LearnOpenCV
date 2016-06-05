@@ -3,6 +3,7 @@ import cv2
 import numpy as np
 
 from scipy import ndimage
+from scipy import stats
 from skimage.feature import peak_local_max
 from skimage.morphology import watershed
 
@@ -36,24 +37,34 @@ from skimage.morphology import watershed
 # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
 #image = cv2.drawKeypoints(image, keypoints, np.array([]), (0,0,255), cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
  
+def mode(arr):
+    arr = np.asarray(arr).flatten()
+    u,ind = np.unique(arr,return_inverse=True)
+    return u[np.argmax(np.bincount(ind))]
 
 def process(image, size):
+    size = int(np.round(size))
 
     #REDUCE NOISE -- SHIFT
     shifted = cv2.pyrMeanShiftFiltering(image,size,size) # -- 9,21 arbitrary
 
     # TO GRAYSCALE
     gray = cv2.cvtColor(shifted, cv2.COLOR_BGR2GRAY)
+    # More Contrast
+    #gray = cv2.equalizeHist(gray)
 
+    #REMOVE NOISE
+    gray = cv2.fastNlMeansDenoising(gray)
+    cv2.imshow("GRAY",gray)
     #REMOVE SPECULAR LIGHT
+    #trunc = gray
     v,trunc = cv2.threshold(gray,128,128,cv2.THRESH_TRUNC) # -- remove specular light
 
-    cv2.imshow("TRUNC",gray)
+    cv2.imshow("TRUNC",trunc)
 
     #SUBTRACT BACKGROUND
-    gray = cv2.absdiff(trunc,cv2.mean(trunc)[0])
+    #gray = cv2.absdiff(trunc,float(mode(trunc)))
 
-    #cv2.imshow("TEST",gray)
 
     #ksize = 7
     #g_image = cv2.GaussianBlur(gray,(ksize,ksize),0)
@@ -61,28 +72,37 @@ def process(image, size):
     #cv2.imshow("LAPLACE",l_image)
 
     #APPLY ADAPTIVE THRESHOLD
-    thresh = cv2.adaptiveThreshold(gray,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+    thresh = cv2.adaptiveThreshold(gray,256,cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
             cv2.THRESH_BINARY_INV,size+1 if size%2==0 else size,2) # -- 13,2 arbitrary
-    cv2.imshow("THRSH",thresh) # --> EDGES
 
-    #val, thresh = cv2.threshold(gray,110,255,cv2.THRESH_BINARY| cv2.THRESH_OTSU)
+    #val, thresh = cv2.threshold(gray,127,255,cv2.THRESH_BINARY| cv2.THRESH_OTSU)
+
+    cv2.imshow("THRESH",thresh) # --> EDGES
 
     #COMPLETE CONTOUR
-    kernel = np.ones((3,3),np.float32) # -- 3,3 arbitrary
-    dilated = cv2.dilate(thresh,kernel,iterations = 1) # -- 3 arbitrary
+    k_dilate = np.asarray([
+        [0.3,0.5,0.3],
+        [0.5,1.0,0.5],
+        [0.3,0.5,0.3]
+        ],np.float32)
+    #kernel = np.ones((3,3),np.float32) # -- 3,3 arbitrary
+    dilated = cv2.dilate(thresh,k_dilate,iterations = 1) # -- 3 arbitrary
     #cv2.imshow("DILATED",dilated)
 
     #FILL CONTOUR
     cnts = cv2.findContours(dilated.copy(),cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_SIMPLE)[-2]
     closed = cv2.drawContours(dilated,cnts,-1,(255,255,255),-1)
-    closed = cv2.morphologyEx(closed, cv2.MORPH_CLOSE, kernel) # fill holes
+
+    k_fill = np.ones((3,3),np.float32)
+    closed = cv2.morphologyEx(closed, cv2.MORPH_CLOSE, k_fill) # fill holes
+    eroded = cv2.erode(closed,k_dilate,iterations = 1)
 
     #KEYPOINTS
-    fast = cv2.FastFeatureDetector_create()
-    kp = fast.detect(gray,None)
-    kpts = cv2.drawKeypoints(image,kp,image.copy(),color=(255,0,0))
+    #fast = cv2.FastFeatureDetector_create()
+    #kp = fast.detect(gray,None)
+    #kpts = cv2.drawKeypoints(image,kp,image.copy(),color=(255,0,0))
     #cv2.imshow("KeyPoints",kpts)
-    return closed
+    return eroded 
 
 def within(a,b,c):
     return a<b and b<c
@@ -93,7 +113,7 @@ def circleArea(r):
 def identify(image,processed,size):
 
     D = ndimage.distance_transform_edt(processed.copy())
-    localMax = peak_local_max(D, indices=False, min_distance=size/2,
+    localMax = peak_local_max(D, indices=False, min_distance=int(np.round(size/4)),
             labels=processed.copy())
      
     # perform a connected component analysis on the local peaks,
@@ -124,7 +144,7 @@ def identify(image,processed,size):
     #ar = cv2.contourArea(c) # max area
     ar = circleArea(size)
 
-    valid_contours = [c for c in contours if within(ar * 0.75, cv2.contourArea(c), ar * 1.5)]
+    valid_contours = [c for c in contours if within(ar * 0.4, cv2.contourArea(c), ar * 2.4)]
     #arbitrary heuristic : valid "tuna" must be at least bigger than half of the biggest one
     identified = image.copy()
     for i,c in enumerate(valid_contours):
@@ -140,6 +160,23 @@ x_prev = 0
 y_prev = 0
 pts = []
 drawing = False
+r = 1.0 # - radius of region
+
+def calculate(r):
+    print("R", r)
+    global orig
+    global image
+
+    hsv = cv2.cvtColor(orig,cv2.COLOR_BGR2HSV)
+    processed = process(hsv,r)
+    n,identified = identify(orig,processed,r)
+
+    cv2.imshow("Image", image)
+    cv2.imshow("Processed", processed)
+    cv2.imshow("Identified", identified)
+
+    print("[INFO] {} unique segments found".format(n))
+
 
 def get_size(event, x, y, flags, param):
     global x_prev
@@ -148,6 +185,8 @@ def get_size(event, x, y, flags, param):
     global orig
     global pts
     global drawing
+    global r
+
     if event == cv2.EVENT_LBUTTONDOWN:
         x_prev = x
         y_prev = y
@@ -165,15 +204,8 @@ def get_size(event, x, y, flags, param):
         pts = np.asarray(pts)
         #cv2.fitEllipse(pts)
         ar = cv2.contourArea(pts)
-        r = int(np.round(np.sqrt(ar/np.pi)))
-        print ("R", r)
-
-        processed = process(orig,r)
-        n,identified = identify(orig,processed,r)
-
-        cv2.imshow("Image", image)
-        cv2.imshow("Processed", processed)
-        cv2.imshow("Identified", identified)
+        r = np.sqrt(ar/np.pi)
+        calculate(r)
 
 #         circleSize = np.zeros((256,256),dtype=np.uint8)
 #         cv2.circle(circleSize, (128,128), int(r/2), (255,255,255),1)
@@ -181,7 +213,6 @@ def get_size(event, x, y, flags, param):
 #         cv2.circle(circleSize, (128,128), int(r*2), (255,255,255),1)
 #         cv2.imshow("Size", circleSize)
 
-        print("[INFO] {} unique segments found".format(n))
 
 
 BASE_DIR = 'Samples-Hexacopter-Tuna'
@@ -193,14 +224,36 @@ IMG_FILE = SUB_DIR + '/' +random.choice(os.listdir(SUB_DIR))
 #IMG_FILE = BASE_DIR + '/' + 'Clear' + '/' + 'P9010878.JPG' 
 #IMG_FILE = 'Samples-Hexacopter-Tuna/Test/P9010093.JPG'
 #IMG_FILE = 'Samples-Hexacopter-Tuna/Clear/P9011022.JPG'
+#IMG_FILE = 'Samples-Hexacopter-Tuna/Range/P9011269.JPG'
 
 print 'FILE : {}'.format(IMG_FILE)
 orig = cv2.imread(IMG_FILE)
 orig = cv2.resize(orig, dsize=(512,512))
+image = orig.copy()
 
 # show the output image
 mainWindow = cv2.namedWindow("Image")
 cv2.imshow("Image", orig)
 
 cv2.setMouseCallback("Image", get_size)
-cv2.waitKey(0)
+
+while(1):
+    k =cv2.waitKey(0) & 255
+    c = chr(k)
+    if c == 'q' or k == 27:
+        break
+    elif c == 'u':
+        r *= 1.1
+        calculate(r)
+    elif c == 'd':
+        r *= 0.9
+        calculate(r)
+    elif c == 'r':
+        SUB_DIR = BASE_DIR + '/' + random.choice(os.listdir(BASE_DIR))
+        IMG_FILE = SUB_DIR + '/' +random.choice(os.listdir(SUB_DIR))
+        print 'FILE : {}'.format(IMG_FILE)
+        orig = cv2.imread(IMG_FILE)
+        orig = cv2.resize(orig, dsize=(512,512))
+        image = orig.copy()
+        cv2.imshow("Image", orig)
+
