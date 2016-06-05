@@ -56,10 +56,10 @@ def process(image, size):
     #REMOVE NOISE
     gray = cv2.fastNlMeansDenoising(gray)
     cv2.imshow("GRAY",gray)
+
     #REMOVE SPECULAR LIGHT
     #trunc = gray
     v,trunc = cv2.threshold(gray,128,128,cv2.THRESH_TRUNC) # -- remove specular light
-
     cv2.imshow("TRUNC",trunc)
 
     #SUBTRACT BACKGROUND
@@ -76,6 +76,7 @@ def process(image, size):
             cv2.THRESH_BINARY_INV,size+1 if size%2==0 else size,2) # -- 13,2 arbitrary
 
     #val, thresh = cv2.threshold(gray,127,255,cv2.THRESH_BINARY| cv2.THRESH_OTSU)
+    thresh = cv2.fastNlMeansDenoising(thresh)
 
     cv2.imshow("THRESH",thresh) # --> EDGES
 
@@ -102,6 +103,7 @@ def process(image, size):
     #kp = fast.detect(gray,None)
     #kpts = cv2.drawKeypoints(image,kp,image.copy(),color=(255,0,0))
     #cv2.imshow("KeyPoints",kpts)
+    #eroded = cv2.Canny(eroded,0,255)
     return eroded 
 
 def within(a,b,c):
@@ -110,16 +112,47 @@ def within(a,b,c):
 def circleArea(r):
     return 3.14*r*r
 
+def identify_blobs(image,processed,size):
+    identified = image.copy()
+
+
+    #BLOB DETECTION ...
+    params = cv2.SimpleBlobDetector_Params()
+    params.minDistBetweenBlobs = 0
+
+    params.filterByColor = True 
+    params.blobColor = 255
+
+    params.filterByArea = True 
+    params.minArea = circleArea(size) * 0.3 
+    params.maxArea = circleArea(size) * 2.0
+
+    params.filterByCircularity = False
+
+    params.filterByConvexity = True 
+    params.minConvexity = 0.5
+
+    params.filterByInertia = False
+
+    detector = cv2.SimpleBlobDetector_create(params)
+
+    labels = detector.detect(processed)
+    cv2.drawKeypoints(identified,labels,identified,color=(255,0,0))
+    return len(labels), identified
+
+ 
 def identify(image,processed,size):
+    identified = image.copy()
 
     D = ndimage.distance_transform_edt(processed.copy())
-    localMax = peak_local_max(D, indices=False, min_distance=int(np.round(size/4)),
+    localMax = peak_local_max(D, indices=False, min_distance=int(np.round(size)),
             labels=processed.copy())
-     
+
     # perform a connected component analysis on the local peaks,
     # using 8-connectivity, then appy the Watershed algorithm
     markers = ndimage.label(localMax, structure=np.ones((3, 3)))[0]
     labels = watershed(-D, markers, mask=processed.copy())
+
 
     contours = []
 
@@ -145,8 +178,7 @@ def identify(image,processed,size):
     ar = circleArea(size)
 
     valid_contours = [c for c in contours if within(ar * 0.4, cv2.contourArea(c), ar * 2.4)]
-    #arbitrary heuristic : valid "tuna" must be at least bigger than half of the biggest one
-    identified = image.copy()
+
     for i,c in enumerate(valid_contours):
             # draw a circle enclosed the object
             ((x, y), r) = cv2.minEnclosingCircle(c)
@@ -218,12 +250,12 @@ def get_size(event, x, y, flags, param):
 BASE_DIR = 'Samples-Hexacopter-Tuna'
 
 #RANDOM IMAGE
-SUB_DIR = BASE_DIR + '/' + random.choice(os.listdir(BASE_DIR))
-IMG_FILE = SUB_DIR + '/' +random.choice(os.listdir(SUB_DIR))
+#SUB_DIR = BASE_DIR + '/' + random.choice(os.listdir(BASE_DIR))
+#IMG_FILE = SUB_DIR + '/' +random.choice(os.listdir(SUB_DIR))
 
 #IMG_FILE = BASE_DIR + '/' + 'Clear' + '/' + 'P9010878.JPG' 
 #IMG_FILE = 'Samples-Hexacopter-Tuna/Test/P9010093.JPG'
-#IMG_FILE = 'Samples-Hexacopter-Tuna/Clear/P9011022.JPG'
+IMG_FILE = 'Samples-Hexacopter-Tuna/Clear/P9011022.JPG'
 #IMG_FILE = 'Samples-Hexacopter-Tuna/Range/P9011269.JPG'
 
 print 'FILE : {}'.format(IMG_FILE)
