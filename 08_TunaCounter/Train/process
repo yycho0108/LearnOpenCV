@@ -1,0 +1,38 @@
+#!/usr/bin/python
+import sys
+import os
+import cv2
+
+import numpy as np
+
+def test():
+    img = cv2.imread(sys.argv[1])
+    cv2.imshow("img",img);
+    print img.shape
+    cv2.waitKey();
+
+def main():
+    directory = sys.argv[1]
+    files = os.listdir(directory)
+    print "TOTAL = {}".format(len(files))
+    for idx ,imgfile in enumerate(files):
+        print "INDEX = {}".format(idx)
+        print "FILE = {}".format(imgfile)
+        _, ext = os.path.splitext(imgfile)
+        if(ext != '.png'):
+            continue;
+        filename = os.path.join(directory, imgfile);
+        img = cv2.imread(filename)
+
+        print np.mean(img[:,:,0])
+        print np.mean(img[:,:,1])
+        print np.mean(img[:,:,2])
+
+        img[:,:,0] = cv2.absdiff(img[:,:,0], np.mean(img[:,:,0]))
+        img[:,:,1] = cv2.absdiff(img[:,:,1], np.mean(img[:,:,1]))
+        img[:,:,2] = cv2.absdiff(img[:,:,2], np.mean(img[:,:,2]))
+
+        cv2.imwrite('TRY/' + imgfile, img)
+
+if __name__ == "__main__":
+    main()

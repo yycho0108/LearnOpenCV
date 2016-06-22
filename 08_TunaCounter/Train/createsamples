@@ -1,0 +1,38 @@
+#!/bin/bash
+#283-340-3 negdim
+#122-120-3 posdim
+
+if [ "$#" -ne 1 ]; then
+	echo " USAGE : createsamples <directory>"
+	exit 0;
+else
+	#get absolute path for directory
+	directory=$(readlink -f $1)
+	mkdir -p info
+
+	#compute number of produced samples
+	n=$(($(ls $directory/*.png -l | wc -l)*8))
+
+	for img in $directory/*.png; do
+		bname=$(basename $img)
+		bname=${bname%.*}
+ 		infofile=info/${bname}/info.txt
+
+ 		opencv_createsamples -img $img \
+ 			-bg ./neg2.bg \
+ 			-info $infofile \
+ 			-num 8 -maxxangle 0.0 -maxyangle 0.0 -maxzangle 1.5 \
+ 			-bgcolor 0 -bgth 8 \
+ 			-w 64 -h 64 
+
+		#prepend directory
+ 		sed -i -e "s@^@${bname}/@" $infofile
+		cat $infofile >> info/info.txt
+		break;
+	done
+
+	opencv_createsamples -info info/info.txt \
+		-bg ./neg2.bg \
+		-vec generated.vec \
+		-num $n -w 64 -h 64 
+fi

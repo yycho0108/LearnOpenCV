@@ -1,4 +1,5 @@
-import os,random
+#!/usr/bin/python
+import os, random
 import cv2
 import numpy as np
 
@@ -82,9 +83,9 @@ def process(image, size):
 
     #COMPLETE CONTOUR
     k_dilate = np.asarray([
-        [0.3,0.5,0.3],
-        [0.5,1.0,0.5],
-        [0.3,0.5,0.3]
+        [.07,.12,.07],
+        [.12,.24,.12],
+        [.07,.12,.07]
         ],np.float32)
     #kernel = np.ones((3,3),np.float32) # -- 3,3 arbitrary
     dilated = cv2.dilate(thresh,k_dilate,iterations = 1) # -- 3 arbitrary
@@ -137,7 +138,7 @@ def identify_blobs(image,processed,size):
     detector = cv2.SimpleBlobDetector_create(params)
 
     labels = detector.detect(processed)
-    cv2.drawKeypoints(identified,labels,identified,color=(255,0,0))
+    cv2.drawKeypoints(identified,labels,identified,color=(255,0,0),flags=cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS)
     return len(labels), identified
 
  
@@ -201,7 +202,7 @@ def calculate(r):
 
     hsv = cv2.cvtColor(orig,cv2.COLOR_BGR2HSV)
     processed = process(hsv,r)
-    n,identified = identify(orig,processed,r)
+    n,identified = identify_blobs(orig,processed,r)
 
     cv2.imshow("Image", image)
     cv2.imshow("Processed", processed)
@@ -255,8 +256,9 @@ BASE_DIR = 'Samples-Hexacopter-Tuna'
 
 #IMG_FILE = BASE_DIR + '/' + 'Clear' + '/' + 'P9010878.JPG' 
 #IMG_FILE = 'Samples-Hexacopter-Tuna/Test/P9010093.JPG'
-IMG_FILE = 'Samples-Hexacopter-Tuna/Clear/P9011022.JPG'
+#IMG_FILE = 'Samples-Hexacopter-Tuna/Clear/P9011022.JPG'
 #IMG_FILE = 'Samples-Hexacopter-Tuna/Range/P9011269.JPG'
+IMG_FILE = 'Samples-Hexacopter-Tuna/Clear/P9010975.JPG'
 
 print 'FILE : {}'.format(IMG_FILE)
 orig = cv2.imread(IMG_FILE)
