@@ -1,0 +1,9 @@
+#!/bin/bash
+mkdir -p data
+opencv_traincascade -data clf -vec './generated.vec' \
+	-bg './neg.bg' \
+	-numPos 6000 -numNeg 12000 -numStages 15 \
+	-precalcValBufSize 1024 -precalcIdxBufSize 1024 \
+	-featureType LBP \
+	-minHitRate 0.995 -maxFalseAlarmRate 0.5 \
+	-w 64 -h 64

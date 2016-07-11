@@ -45,9 +45,9 @@ def mode(arr):
 
 def process(image, size):
     size = int(np.round(size))
-
+    denoised = cv2.fastNlMeansDenoisingColored(image)
     #REDUCE NOISE -- SHIFT
-    shifted = cv2.pyrMeanShiftFiltering(image,size,size) # -- 9,21 arbitrary
+    shifted = cv2.pyrMeanShiftFiltering(denoised,size,size) # -- 9,21 arbitrary
 
     # TO GRAYSCALE
     gray = cv2.cvtColor(shifted, cv2.COLOR_BGR2GRAY)
@@ -60,8 +60,8 @@ def process(image, size):
 
     #REMOVE SPECULAR LIGHT
     #trunc = gray
-    v,trunc = cv2.threshold(gray,128,128,cv2.THRESH_TRUNC) # -- remove specular light
-    cv2.imshow("TRUNC",trunc)
+    #v,trunc = cv2.threshold(gray,128,128,cv2.THRESH_TRUNC) # -- remove specular light
+    #cv2.imshow("TRUNC",trunc)
 
     #SUBTRACT BACKGROUND
     #gray = cv2.absdiff(trunc,float(mode(trunc)))
@@ -251,14 +251,14 @@ def get_size(event, x, y, flags, param):
 BASE_DIR = 'Samples-Hexacopter-Tuna'
 
 #RANDOM IMAGE
-#SUB_DIR = BASE_DIR + '/' + random.choice(os.listdir(BASE_DIR))
+SUB_DIR = BASE_DIR + '/' + random.choice(os.listdir(BASE_DIR))
 #IMG_FILE = SUB_DIR + '/' +random.choice(os.listdir(SUB_DIR))
 
 #IMG_FILE = BASE_DIR + '/' + 'Clear' + '/' + 'P9010878.JPG' 
 #IMG_FILE = 'Samples-Hexacopter-Tuna/Test/P9010093.JPG'
-#IMG_FILE = 'Samples-Hexacopter-Tuna/Clear/P9011022.JPG'
+IMG_FILE = 'Samples-Hexacopter-Tuna/Clear/P9011022.JPG'
 #IMG_FILE = 'Samples-Hexacopter-Tuna/Range/P9011269.JPG'
-IMG_FILE = 'Samples-Hexacopter-Tuna/Clear/P9010975.JPG'
+#IMG_FILE = 'Samples-Hexacopter-Tuna/Clear/P9010975.JPG'
 
 print 'FILE : {}'.format(IMG_FILE)
 orig = cv2.imread(IMG_FILE)

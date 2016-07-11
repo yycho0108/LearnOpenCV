@@ -1,0 +1,7 @@
+#!/bin/bash
+echo "$#"
+if [ "$#" -eq 3 ]; then
+	opencv_createsamples -vec $1 -show 16 -w $2 -h $3
+else
+	opencv_createsamples -vec $1 -show
+fi

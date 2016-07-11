@@ -1,0 +1,14 @@
+#!/bin/bash
+
+if [ "$#" -ne 3 ]; then
+	echo "USAGE : describe <dir> <width> <height>"
+	exit -1
+else
+	d=$1
+	w=$2
+	h=$3
+	o=$1_${w}x${h}.dat
+	v=$1_${w}x${h}.vec
+
+	find $d -name '*.png' -exec echo $(readlink -f \{\}) 1 0 0 $w $h \; > $o
+fi

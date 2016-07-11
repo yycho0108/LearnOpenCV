@@ -1,0 +1,2 @@
+#!/bin/bash
+opencv_createsamples -info 'positives_64_64_64x64.dat' -vec 'positives_64_64_64x64.vec' -w 64 -h 64 -bg 'negatives_340x283.dat' -maxxangle 0 -maxyangle 0 -maxzangle 3.14 -num 992

@@ -1,0 +1,2 @@
+#!/bin/bash
+opencv_createsamples -info 'pos.dat' -vec 'pos.vec' -w 32 -h 32 -bg 'neg.bg' -maxxangle 0 -maxyangle 0 -maxzangle 1.5 -num 706

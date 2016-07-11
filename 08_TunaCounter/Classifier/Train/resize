@@ -1,0 +1,43 @@
+#!/usr/bin/python
+import sys
+import os
+import cv2
+
+def test(): # -- show shape of 1 file
+    img = cv2.imread(sys.argv[1])
+    cv2.imshow("img",img);
+    print img.shape
+    cv2.waitKey();
+
+def main(): # -- search through directory
+    if len(sys.argv) < 2:
+        print "USAGE : {} <IMG_DIR>".format(sys.argv[0])
+        return;
+    directory = sys.argv[1]
+    RSdir = directory + "_RS"
+    os.mkdir(RSdir)
+
+    files = os.listdir(directory)
+    print "TOTAL = {}".format(len(files))
+    for idx, imgfile in enumerate(files):
+        print "INDEX = {}".format(idx)
+        filename = os.path.join(directory, imgfile);
+        print "file = {}".format(imgfile)
+
+        _, ext = os.path.splitext(imgfile)
+        if(ext != '.JPG' and ext != '.png'):
+            print ext
+            continue;
+
+        img = cv2.imread(filename)
+
+        #img = cv2.resize(img, (0,0), fx=0.25, fy=0.25)
+        img = cv2.resize(img, (32,32))
+
+        imgdir = os.path.join(RSdir,imgfile)
+        cv2.imwrite(imgdir, img)
+        print img.shape
+
+if __name__ == "__main__":
+    #test()
+    main()

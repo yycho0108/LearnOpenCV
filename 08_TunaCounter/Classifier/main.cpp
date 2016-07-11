@@ -3,6 +3,11 @@
  * @author A. Huaman ( based in the classic facedetect.cpp in samples/c )
  * @brief A simplified version of facedetect.cpp, show how to load a cascade classifier and how to find objects (Face + eyes) in a video stream - Using LBP here
  */
+#include <opencv2/core/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <opencv2/objdetect/objdetect.hpp>
+#include <opencv2/photo/photo.hpp>
+
 #include "opencv2/objdetect.hpp"
 #include "opencv2/videoio.hpp"
 #include "opencv2/highgui.hpp"
@@ -19,16 +24,17 @@ void detectAndDisplay( Mat frame, CascadeClassifier& clf)
 	std::vector<Rect> objs;
 	Mat frame_gray;
 
-	cvtColor( frame, frame_gray, COLOR_BGR2GRAY );
+	fastNlMeansDenoisingColored(frame,frame);
+    //cvtColor(frame,frame,COLOR_BGR2HSV);
+	cvtColor(frame, frame_gray, COLOR_BGR2GRAY );
+	imshow("THRESH", frame_gray);
 	equalizeHist( frame_gray, frame_gray );
 
 	//-- Detect objectss
-	clf.detectMultiScale( frame_gray, objs, 1.1, 2, 0, Size(80, 80) );
+	clf.detectMultiScale( frame_gray, objs, 1.05, 5, 0, Size(8,8), Size(96,96));
 
 	for( size_t i = 0; i < objs.size(); i++ )
 	{
-		std::vector<Rect> eyes;
-
 		//-- Draw the face
 		Point center( objs[i].x + objs[i].width/2, objs[i].y + objs[i].height/2 );
 		ellipse( frame, center, Size( objs[i].width/2, objs[i].height/2 ), 0, 0, 360, Scalar( 255, 0, 0 ), 2, 8, 0 );
@@ -64,6 +70,9 @@ int main(int argc, char* argv[])
 	while((c = waitKey(10))){
 		if(c == 27)
 			break;
+		else if(c == 'r'){
+			//rerun with different image
+		}
 	}
 
 	return 0;

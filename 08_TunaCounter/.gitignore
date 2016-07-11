@@ -171,5 +171,15 @@ CTestTestfile.cmake
 
 
 ### Assets
-
 Samples-Hexacopter-Tuna
+*.vec
+*.dat
+*.bg
+
+*.PNG
+*.png
+*.JPG
+*.jpg
+*.TXT
+*.txt
+*/data/

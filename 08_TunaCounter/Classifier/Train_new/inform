@@ -1,0 +1,7 @@
+#!/bin/bash
+if [ "$#" -ne 3 ]; then
+	echo "USAGE : inform.bash <dat> <w> <h>"
+	return -1
+fi
+
+opencv_createsamples -info $1 -vec ${1%.*}.vec -w $2 -h $3
